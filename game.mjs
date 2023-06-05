@@ -4,6 +4,7 @@ let mapKeyName = (key) => (key === " " ? "Space" : key);
 let ctx2d;
 let w, h;
 let lt;
+let asteroid_initial_width = [1, 1.5];
 let assets = {};
 let input = {};
 let player;
@@ -50,15 +51,22 @@ function initLevel() {
   };
   asteroids = [];
   for (let i = 0; i < 3; ++i) {
+    let sprite = [assets.asteroid_0, assets.asteroid_1][
+      Math.floor(Math.random() * 2)
+    ];
+    let scale =
+      Math.random() * (asteroid_initial_width[1] - asteroid_initial_width[0]) +
+      asteroid_initial_width[0];
+    let r = sprite.width * 0.5;
+    console.log(scale, r, sprite.width);
     asteroids.push({
-      sprite: [assets.asteroid_0, assets.asteroid_1][
-        Math.floor(Math.random() * 2)
-      ],
-      r: assets.asteroid_0.width / 2,
-      scale: Math.random() * 0.5 + 1,
-      x: (w / 5) * (i + 1),
-      y: h / 4,
+      sprite,
+      r,
+      scale,
+      x: Math.random() * w,
+      y: Math.random() * h,
       angle: Math.random() * 360,
+      rot: Math.random() * 0.5 - 0.25,
     });
   }
 }
@@ -73,11 +81,18 @@ function nextFrame(t) {
 function gameLoop(dt) {
   ctx2d.clearRect(0, 0, w, h);
 
+  // updatePlayer();
   draw(player);
 
   for (let i = 0; i < asteroids.length; ++i) {
+    update(dt, asteroids[i]);
     draw(asteroids[i]);
   }
+}
+
+function update(dt, entity) {
+  entity.angle += entity.rot * dt;
+  if (entity.angle >= 360) entity.angle -= 360;
 }
 
 function draw(entity) {
