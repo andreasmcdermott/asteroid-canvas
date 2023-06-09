@@ -61,9 +61,21 @@ export function init(canvas) {
     { passive: true }
   );
 
+  initConstants();
   initLevel();
   lt = performance.now();
   requestAnimationFrame(nextFrame);
+}
+
+function initConstants() {
+  stars = [];
+  let num_stars = Math.floor(Math.random() * 50) + 50;
+  for (let i = 0; i < num_stars; ++i) {
+    stars.push({
+      p: new Vec2(Math.random() * w, Math.random() * h),
+      r: Math.random() * 2 + 1,
+    });
+  }
 }
 
 function initLevel() {
@@ -105,6 +117,21 @@ function nextFrame(t) {
 
 function gameLoop(dt) {
   ctx.clearRect(0, 0, w, h);
+
+  for (let i = 0; i < stars.length; ++i) {
+    ctx.beginPath();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+    ctx.ellipse(
+      stars[i].p.x,
+      stars[i].p.y,
+      stars[i].r,
+      stars[i].r,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  }
 
   updatePlayer(dt, player);
   drawPlayer(player);
@@ -262,15 +289,7 @@ function updatePlayer(dt, player) {
 }
 
 function drawPlayer(player) {
-  drawTriangle(
-    player.p.x,
-    player.p.y,
-    player.angle,
-    "white",
-    2,
-    player.w,
-    player.h
-  );
+  drawTriangle(player.p.x, player.p.y, player.angle, player.w, player.h);
 
   if (player.thrusts.length) {
     for (let i = 0; i < player.thrusts.length; ++i) {
@@ -315,7 +334,7 @@ function drawPlayer(player) {
   if (xx !== null || yy !== null) {
     if (xx === null) xx = player.p.x;
     if (yy === null) yy = player.p.y;
-    drawTriangle(xx, yy, player.angle, "white", 2, player.w, player.h);
+    drawTriangle(xx, yy, player.angle, player.w, player.h);
   }
 }
 
@@ -338,11 +357,10 @@ function drawAsteroid(asteroid) {
     asteroid.p.x,
     asteroid.p.y,
     asteroid.angle,
-    "white",
-    asteroid_levels - asteroid.level + 1,
     asteroid.r,
     asteroid.r,
-    asteroid.r / 5
+    asteroid.r / 5,
+    asteroid_levels - asteroid.level + 1
   );
 
   let xx = null;
@@ -359,38 +377,60 @@ function drawAsteroid(asteroid) {
       xx,
       yy,
       asteroid.angle,
-      "white",
-      asteroid_levels - asteroid.level + 1,
       asteroid.r,
       asteroid.r,
-      asteroid.r / 5
+      asteroid.r / 5,
+      asteroid_levels - asteroid.level + 1
     );
   }
 }
 
-function drawRoundRect(x, y, angle, strokeStyle, lineWidth, w, h, r) {
+function drawRoundRect(
+  x,
+  y,
+  angle,
+  w,
+  h,
+  r,
+  lineWidth = 2,
+  strokeStyle = "white",
+  fillStyle = "black"
+) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle * DEG2RAD);
+  ctx.fillStyle = fillStyle;
   ctx.strokeStyle = strokeStyle;
   ctx.lineWidth = lineWidth;
   ctx.beginPath();
   ctx.roundRect(w * -0.5, h * -0.5, w, h, r);
+  ctx.fill();
   ctx.stroke();
   ctx.restore();
 }
 
-function drawTriangle(x, y, angle, strokeStyle, lineWidth, w, h) {
+function drawTriangle(
+  x,
+  y,
+  angle,
+  w,
+  h,
+  lineWidth = 2,
+  strokeStyle = "white",
+  fillStyle = "black"
+) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle * DEG2RAD);
   ctx.lineWidth = lineWidth;
+  ctx.fillStyle = fillStyle;
   ctx.strokeStyle = strokeStyle;
   ctx.beginPath();
   ctx.moveTo(h * 0.5, 0);
   ctx.lineTo(h * -0.5, w * 0.5);
   ctx.lineTo(h * -0.5, w * -0.5);
   ctx.lineTo(h * 0.5, 0);
+  ctx.fill();
   ctx.stroke();
   ctx.restore();
 }
