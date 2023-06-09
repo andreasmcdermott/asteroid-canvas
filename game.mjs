@@ -26,6 +26,9 @@ let laser_len = 32;
 let thrust_size = player_h / 5;
 let thrust_max_age = 300;
 let thrust_cooldown = 30;
+let max_shield_charge = 1000;
+let shield_recharge_rate = 1;
+let shield_discharge_cooldown = 2500;
 
 export function init(canvas) {
   w = window.innerWidth;
@@ -90,6 +93,9 @@ function initLevel() {
     lasers: [],
     laser_cooldown: 0,
     thrust_cooldown: 0,
+    shield: false,
+    shield_charge: max_shield_charge,
+    shield_cooldown_timer: 0,
   };
 
   asteroids = [];
@@ -183,6 +189,30 @@ function gameLoop(dt) {
 
   // ctx.fillStyle = "white";
   // ctx.fillText((1000 / dt).toFixed(2), 10, 10);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgb(25, 255, 25)";
+  ctx.fillStyle =
+    player.shield_charge <= 0
+      ? `rgba(255, 25, 25, ${
+          player.shield_recharging
+            ? Math.sin(
+                (player.shield_cooldown_timer / shield_discharge_cooldown) *
+                  Math.PI *
+                  32
+              )
+            : 0.5
+        })`
+      : `rgba(25, 255, 25, 0.5)`;
+  ctx.strokeRect(10, 10, 200, 20);
+  ctx.fillRect(
+    12,
+    12,
+    196 *
+      (player.shield_charge <= 0
+        ? 1
+        : Math.max(0, player.shield_charge / max_shield_charge)),
+    16
+  );
 }
 
 function updatePlayer(dt, player) {
@@ -217,7 +247,8 @@ function updatePlayer(dt, player) {
     RotLeft: input.ArrowLeft || input.a,
     RotRight: input.ArrowRight || input.d,
     Accelerate: input.ArrowUp || input.w,
-    Fire: input[" "],
+    Fire: input[" "] || input.q,
+    Shield: input.e,
   };
 
   if (actions.RotLeft) player.rot = -1;
@@ -234,8 +265,8 @@ function updatePlayer(dt, player) {
     if (player.thrust_cooldown <= 0) {
       player.thrust_cooldown = thrust_cooldown;
       let v = Vec2.fromAngle(player.angle);
-      let x = player.p.x - v.x * player.h * 0.5;
-      let y = player.p.y - v.y * player.h * 0.5;
+      let x = player.p.x - v.x * player.h * 0.6;
+      let y = player.p.y - v.y * player.h * 0.6;
       if (x < 0) x += w;
       else if (x > w) x -= w;
       if (y < 0) y += h;
@@ -248,7 +279,32 @@ function updatePlayer(dt, player) {
     }
   }
 
-  if (actions.Fire) {
+  if (actions.Shield && player.shield_charge > 0) {
+    player.shield_recharging = false;
+    player.shield = true;
+  } else {
+    if (!actions.Shield) {
+      player.shield_recharging = true;
+    }
+    player.shield = false;
+  }
+
+  if (player.shield) {
+    player.shield_charge = Math.max(player.shield_charge - dt, 0);
+    if (player.shield_charge === 0) {
+      player.shield_cooldown_timer = shield_discharge_cooldown;
+    }
+  } else if (player.shield_recharging) {
+    player.shield_cooldown_timer = Math.max(player.shield_cooldown_timer - dt);
+    if (player.shield_cooldown_timer <= 0) {
+      player.shield_charge = Math.min(
+        player.shield_charge + dt * shield_recharge_rate,
+        max_shield_charge
+      );
+    }
+  }
+
+  if (!player.shield && actions.Fire) {
     if (player.laser_cooldown <= 0) {
       player.laser_cooldown = laser_cooldown;
       let v = Vec2.fromAngle(player.angle);
@@ -289,7 +345,10 @@ function updatePlayer(dt, player) {
 }
 
 function drawPlayer(player) {
-  drawTriangle(player.p.x, player.p.y, player.angle, player.w, player.h);
+  drawPlayerShip(player.p.x, player.p.y, player.angle, player.w, player.h);
+  if (player.shield) {
+    drawPlayerShield(player.p.x, player.p.y, player.angle, player.h / 1.7);
+  }
 
   if (player.thrusts.length) {
     for (let i = 0; i < player.thrusts.length; ++i) {
@@ -297,14 +356,13 @@ function drawPlayer(player) {
       let pa = thrust.age / thrust_max_age;
       ctx.save();
       ctx.translate(thrust.p.x, thrust.p.y);
-      ctx.lineWidth = 2;
       let size = (thrust_size - 6) * pa + 6;
-      ctx.strokeStyle = `rgba(${55 * (1 - pa) + 200}, ${
+      ctx.fillStyle = `rgba(${55 * (1 - pa) + 200}, ${
         200 * (1 - pa) + 55
       }, 0, ${1 - pa})`;
       ctx.beginPath();
-      ctx.roundRect(-size / 2, -size / 2, size, size, size / 4);
-      ctx.stroke();
+      ctx.ellipse(0, 0, size, size, 0, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     }
   }
@@ -334,7 +392,10 @@ function drawPlayer(player) {
   if (xx !== null || yy !== null) {
     if (xx === null) xx = player.p.x;
     if (yy === null) yy = player.p.y;
-    drawTriangle(xx, yy, player.angle, player.w, player.h);
+    drawPlayerShip(xx, yy, player.angle, player.w, player.h);
+    if (player.shield) {
+      drawPlayerShield(xx, yy, player.angle, player.h / 1.7);
+    }
   }
 }
 
@@ -370,11 +431,56 @@ function drawAsteroid(asteroid) {
   if (asteroid.p.y - asteroid.r < 0) yy = asteroid.p.y + h;
   else if (asteroid.p.y + asteroid.r > h) yy = asteroid.p.y - h;
 
-  if (xx !== null || yy !== null) {
-    if (xx === null) xx = asteroid.p.x;
-    if (yy === null) yy = asteroid.p.y;
+  if (xx !== null && yy !== null) {
     drawRoundRect(
       xx,
+      asteroid.p.y,
+      asteroid.angle,
+      asteroid.r,
+      asteroid.r,
+      asteroid.r / 5,
+      asteroid_levels - asteroid.level + 1
+    );
+    drawRoundRect(
+      asteroid.p.x,
+      yy,
+      asteroid.angle,
+      asteroid.r,
+      asteroid.r,
+      asteroid.r / 5,
+      asteroid_levels - asteroid.level + 1
+    );
+    drawRoundRect(
+      xx,
+      asteroid.p.y,
+      asteroid.angle,
+      asteroid.r,
+      asteroid.r,
+      asteroid.r / 5,
+      asteroid_levels - asteroid.level + 1
+    );
+    drawRoundRect(
+      xx,
+      yy,
+      asteroid.angle,
+      asteroid.r,
+      asteroid.r,
+      asteroid.r / 5,
+      asteroid_levels - asteroid.level + 1
+    );
+  } else if (xx !== null) {
+    drawRoundRect(
+      xx,
+      asteroid.p.y,
+      asteroid.angle,
+      asteroid.r,
+      asteroid.r,
+      asteroid.r / 5,
+      asteroid_levels - asteroid.level + 1
+    );
+  } else if (yy !== null) {
+    drawRoundRect(
+      asteroid.p.x,
       yy,
       asteroid.angle,
       asteroid.r,
@@ -409,7 +515,7 @@ function drawRoundRect(
   ctx.restore();
 }
 
-function drawTriangle(
+function drawPlayerShip(
   x,
   y,
   angle,
@@ -425,11 +531,41 @@ function drawTriangle(
   ctx.lineWidth = lineWidth;
   ctx.fillStyle = fillStyle;
   ctx.strokeStyle = strokeStyle;
+  // Wings
+  ctx.beginPath();
+  ctx.moveTo(h * -0.5, 0);
+  ctx.lineTo(h * -0.4, w);
+  ctx.lineTo(h * -0.1, w);
+  ctx.lineTo(0, 0);
+  ctx.lineTo(h * -0.1, -w);
+  ctx.lineTo(h * -0.4, -w);
+  ctx.lineTo(h * -0.5, 0);
+  ctx.fill();
+  ctx.stroke();
+  // Body
   ctx.beginPath();
   ctx.moveTo(h * 0.5, 0);
   ctx.lineTo(h * -0.5, w * 0.5);
   ctx.lineTo(h * -0.5, w * -0.5);
   ctx.lineTo(h * 0.5, 0);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawPlayerShield(x, y, angle, r) {
+  let gradient = ctx.createRadialGradient(0, 0, r / 8, 0, 0, r * 2);
+  gradient.addColorStop(0, "rgba(128, 255, 128, 0.75)");
+  gradient.addColorStop(1, "rgba(100, 255, 100, 0.1)");
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle * DEG2RAD);
+  ctx.lineWidth = 1;
+  ctx.fillStyle = gradient;
+  ctx.strokeStyle = "rgba(100, 255, 100, 1)";
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r, r, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
   ctx.restore();
