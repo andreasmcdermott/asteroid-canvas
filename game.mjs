@@ -1,16 +1,24 @@
-import { Vec2, DEG2RAD } from "./math.mjs";
+import { Vec2, DEG2RAD, RAD2DEG, PI, PI2, rnd } from "./math.mjs";
+import {
+  point_inside,
+  wrapDeg,
+  clampMin,
+  clampMax,
+  line_intersect_circle,
+  distance,
+} from "./utils.mjs";
 
 let ctx;
 let w, h;
 let lt;
 let asteroid_levels = 3;
-let asteroid_widths = [
+let asteroid_sizes = [
   [72, 112],
   [48, 64],
   [16, 32],
 ];
-let asteroid_speed = 2;
-let asteroid_rot_speed = 0.1;
+let asteroid_speed = [0.01, 0.175];
+let asteroid_rot_speed = [0.05, 0.15];
 let player_acc = 0.0006;
 let player_max_speed = 0.3;
 let player_rot_speed = 0.5;
@@ -29,10 +37,16 @@ let thrust_cooldown = 30;
 let max_shield_charge = 1000;
 let shield_recharge_rate = 1;
 let shield_discharge_cooldown = 2500;
+let debug = false;
+let mouse_active = false;
+let wmin = Vec2.origin();
+let wmax;
+let player_destroyed = false;
 
 export function init(canvas) {
   w = window.innerWidth;
   h = window.innerHeight;
+  wmax = new Vec2(w, h);
   canvas.setAttribute("width", w);
   canvas.setAttribute("height", h);
   ctx = canvas.getContext("2d");
@@ -42,6 +56,7 @@ export function init(canvas) {
     () => {
       w = window.innerWidth;
       h = window.innerHeight;
+      wmax.set(w, h);
       canvas.setAttribute("width", w);
       canvas.setAttribute("height", h);
     },
@@ -60,9 +75,41 @@ export function init(canvas) {
     "keyup",
     (e) => {
       delete input[e.key];
+
+      if (e.key === "Backspace") debug = !debug;
     },
     { passive: true }
   );
+
+  window.addEventListener(
+    "mousemove",
+    (e) => {
+      // mouse_active = true;
+      input["MouseX"] = e.x;
+      input["MouseY"] = e.y;
+    },
+    { passive: true }
+  );
+
+  window.addEventListener(
+    "mousedown",
+    (e) => {
+      input[`Mouse${e.button}`] = true;
+    },
+    { passive: true }
+  );
+
+  window.addEventListener(
+    "mouseup",
+    (e) => {
+      delete input[`Mouse${e.button}`];
+    },
+    { passive: true }
+  );
+
+  window.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+  });
 
   initConstants();
   initLevel();
@@ -72,11 +119,11 @@ export function init(canvas) {
 
 function initConstants() {
   stars = [];
-  let num_stars = Math.floor(Math.random() * 50) + 50;
+  let num_stars = rnd(50, 100);
   for (let i = 0; i < num_stars; ++i) {
     stars.push({
-      p: new Vec2(Math.random() * w, Math.random() * h),
-      r: Math.random() * 2 + 1,
+      p: new Vec2(rnd(w), rnd(h)),
+      r: rnd(1, 3),
     });
   }
 }
@@ -85,10 +132,11 @@ function initLevel() {
   player = {
     w: player_w,
     h: player_h,
+    r: player_h / 1.7,
     p: new Vec2(w / 2, h / 2),
     angle: 270,
     rot: 0,
-    v: new Vec2(0, 0),
+    v: Vec2.origin(),
     thrusts: [],
     lasers: [],
     laser_cooldown: 0,
@@ -103,13 +151,13 @@ function initLevel() {
   for (let i = 0; i < 3; ++i) {
     asteroids.push({
       level: lvl,
-      r:
-        Math.random() * (asteroid_widths[lvl][1] - asteroid_widths[lvl][0]) +
-        asteroid_widths[lvl][0],
-      p: new Vec2(Math.random() * w, Math.random() * h),
-      angle: Math.random() * 360,
-      rot: Math.random() * 2 - 1,
-      v: new Vec2(Math.random() * 2 - 1, Math.random() * 2 - 1).normalize(),
+      size: rnd(...asteroid_sizes[lvl]),
+      p: new Vec2(rnd(w), rnd(h)),
+      angle: rnd(360),
+      rot: rnd(-1, 1) * rnd(...asteroid_rot_speed),
+      v: new Vec2(rnd(-1, 1), rnd(-1, 1))
+        .normalize()
+        .scale(rnd(...asteroid_speed)),
     });
   }
 }
@@ -127,20 +175,9 @@ function gameLoop(dt) {
   for (let i = 0; i < stars.length; ++i) {
     ctx.beginPath();
     ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-    ctx.ellipse(
-      stars[i].p.x,
-      stars[i].p.y,
-      stars[i].r,
-      stars[i].r,
-      0,
-      0,
-      Math.PI * 2
-    );
+    ctx.ellipse(stars[i].p.x, stars[i].p.y, stars[i].r, stars[i].r, 0, 0, PI2);
     ctx.fill();
   }
-
-  updatePlayer(dt, player);
-  drawPlayer(player);
 
   let valid_asteroids = [];
   for (let i = 0; i < asteroids.length; ++i) {
@@ -151,10 +188,12 @@ function gameLoop(dt) {
       let laser = player.lasers[i];
       if (laser.destroyed) continue;
       if (
-        laser.p.x < asteroid.p.x + asteroid.r / 2 &&
-        laser.p.x > asteroid.p.x - asteroid.r / 2 &&
-        laser.p.y < asteroid.p.y + asteroid.r / 2 &&
-        laser.p.y > asteroid.p.y - asteroid.r / 2
+        line_intersect_circle(
+          laser.p,
+          laser.p.copy().add(laser.v.copy().scale(laser_len)),
+          asteroid.p,
+          asteroid.size / 2
+        )
       ) {
         laser.destroyed = true;
         destroyed = true;
@@ -163,17 +202,13 @@ function gameLoop(dt) {
           for (let i = 0; i < 4; ++i) {
             valid_asteroids.push({
               level: lvl,
-              r:
-                Math.random() *
-                  (asteroid_widths[lvl][1] - asteroid_widths[lvl][0]) +
-                asteroid_widths[lvl][0],
-              p: Vec2.copy(asteroid.p),
-              angle: Math.random() * 360,
-              rot: Math.random() * 2 - 1,
-              v: new Vec2(
-                Math.random() * 2 - 1,
-                Math.random() * 2 - 1
-              ).normalize(),
+              size: rnd(...asteroid_sizes[lvl]),
+              p: asteroid.p.copy(),
+              angle: rnd(360),
+              rot: rnd(-1, 1) * rnd(...asteroid_rot_speed),
+              v: new Vec2(rnd(-1, 1), rnd(-1, 1))
+                .normalize()
+                .scale(rnd(...asteroid_speed)),
             });
           }
         }
@@ -187,32 +222,92 @@ function gameLoop(dt) {
   }
   asteroids = valid_asteroids;
 
-  // ctx.fillStyle = "white";
-  // ctx.fillText((1000 / dt).toFixed(2), 10, 10);
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "rgb(25, 255, 25)";
-  ctx.fillStyle =
-    player.shield_charge <= 0
-      ? `rgba(255, 25, 25, ${
-          player.shield_recharging
-            ? Math.sin(
-                (player.shield_cooldown_timer / shield_discharge_cooldown) *
-                  Math.PI *
-                  32
-              )
-            : 0.5
-        })`
-      : `rgba(25, 255, 25, 0.5)`;
-  ctx.strokeRect(10, 10, 200, 20);
-  ctx.fillRect(
-    12,
-    12,
-    196 *
-      (player.shield_charge <= 0
-        ? 1
-        : Math.max(0, player.shield_charge / max_shield_charge)),
-    16
-  );
+  for (let i = 0; i < asteroids.length; ++i) {
+    let asteroid = asteroids[i];
+    let d = distance(player.p, asteroid.p);
+    if (d < player.r + asteroid.size / 2) {
+      if (player.shield) {
+        player.v = player.p
+          .copy()
+          .sub(asteroid.p)
+          .normalize()
+          .scale(player.v.len() * 0.75);
+        asteroid.v = asteroid.p
+          .copy()
+          .sub(player.p)
+          .normalize()
+          .scale(player.v.len() * 0.5);
+        asteroid.p.add(
+          asteroid.v
+            .copy()
+            .normalize()
+            .scale(player.r + asteroid.size / 2 - d)
+        );
+      } else {
+        player_destroyed = true;
+        break;
+      }
+    }
+  }
+
+  if (asteroids.length === 0) {
+    ctx.lineWidht = 4;
+    ctx.strokeStyle = "black";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
+    ctx.fillRect(0, 0, w, h);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "white";
+    ctx.font = "80px monospace";
+    ctx.fillText("You Win", w / 2, h / 2 - 50);
+    ctx.font = "22px monospace";
+    ctx.fillText("Press Space to Start", w / 2, h / 2 + 50);
+  } else if (player_destroyed) {
+    ctx.lineWidht = 4;
+    ctx.strokeStyle = "black";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
+    ctx.fillRect(0, 0, w, h);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "white";
+    ctx.font = "80px monospace";
+    ctx.fillText("Game Over", w / 2, h / 2 - 50);
+    ctx.font = "22px monospace";
+    ctx.fillText("Press Space to Start", w / 2, h / 2 + 50);
+  } else {
+    updatePlayer(dt, player);
+    drawPlayer(player);
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgb(25, 255, 25)";
+    ctx.fillStyle =
+      player.shield_charge <= 0
+        ? `rgba(255, 25, 25, ${
+            player.shield_recharging
+              ? Math.sin(
+                  (player.shield_cooldown_timer / shield_discharge_cooldown) *
+                    PI *
+                    32
+                )
+              : 0.5
+          })`
+        : `rgba(25, 255, 25, 0.5)`;
+    ctx.strokeRect(10, 10, 200, 20);
+    ctx.fillRect(
+      12,
+      12,
+      196 *
+        (player.shield_charge <= 0
+          ? 1
+          : clampMin(player.shield_charge / max_shield_charge)),
+      16
+    );
+  }
+  if (debug) {
+    ctx.fillStyle = "white";
+    ctx.textAlign = "right";
+    ctx.fillText((1000 / dt).toFixed(2), w - 10, 10);
+  }
 }
 
 function updatePlayer(dt, player) {
@@ -220,14 +315,8 @@ function updatePlayer(dt, player) {
   for (let i = 0; i < player.lasers.length; ++i) {
     let laser = player.lasers[i];
     if (laser.destroyed) continue;
-    laser.p.x += laser.v.x * dt * laser_speed;
-    laser.p.y += laser.v.y * dt * laser_speed;
-    if (
-      laser.p.x + laser_len >= 0 &&
-      laser.p.x - laser_len <= w &&
-      laser.p.y + laser_len >= 0 &&
-      laser.p.y - laser_len <= h
-    ) {
+    laser.p.add(laser.v.copy().scale(dt * laser_speed));
+    if (point_inside(laser.p, wmin, wmax)) {
       valid_lasers.push(laser);
     }
   }
@@ -243,22 +332,37 @@ function updatePlayer(dt, player) {
   }
   player.thrusts = valid_thrusts;
 
-  const actions = {
+  let actions = {
     RotLeft: input.ArrowLeft || input.a,
     RotRight: input.ArrowRight || input.d,
     Accelerate: input.ArrowUp || input.w,
-    Fire: input[" "] || input.q,
-    Shield: input.e,
+    Fire: input[" "] || input["."] || input.Mouse0,
+    Shield: input.Shift || input[","] || input.Mouse2,
   };
 
-  if (actions.RotLeft) player.rot = -1;
-  if (actions.RotRight) player.rot = 1;
+  if (actions.RotLeft) {
+    player.rot = -1;
+    mouse_active = false;
+  }
+  if (actions.RotRight) {
+    player.rot = 1;
+    mouse_active = false;
+  }
   if (actions.RotLeft === actions.RotRight) player.rot = 0;
+
+  if (mouse_active) {
+    let dir = new Vec2(
+      input.MouseX - player.p.x,
+      input.MouseY - player.p.y
+    ).normalize();
+    player.angle = Math.atan2(dir.y, dir.x) * RAD2DEG;
+  } else {
+    player.angle = wrapDeg(player.angle + player.rot * player_rot_speed * dt);
+  }
 
   if (actions.Accelerate) {
     let acc = Vec2.fromAngle(player.angle);
-    player.v.x += acc.x * dt * player_acc;
-    player.v.y += acc.y * dt * player_acc;
+    player.v.add(acc.scale(dt * player_acc));
     if (player.v.len() > player_max_speed) {
       player.v.normalize().scale(player_max_speed);
     }
@@ -290,14 +394,14 @@ function updatePlayer(dt, player) {
   }
 
   if (player.shield) {
-    player.shield_charge = Math.max(player.shield_charge - dt, 0);
+    player.shield_charge = clampMin(player.shield_charge - dt);
     if (player.shield_charge === 0) {
       player.shield_cooldown_timer = shield_discharge_cooldown;
     }
   } else if (player.shield_recharging) {
-    player.shield_cooldown_timer = Math.max(player.shield_cooldown_timer - dt);
+    player.shield_cooldown_timer = clampMin(player.shield_cooldown_timer - dt);
     if (player.shield_cooldown_timer <= 0) {
-      player.shield_charge = Math.min(
+      player.shield_charge = clampMax(
         player.shield_charge + dt * shield_recharge_rate,
         max_shield_charge
       );
@@ -323,14 +427,10 @@ function updatePlayer(dt, player) {
     }
   }
 
-  player.thrust_cooldown = Math.max(0, player.thrust_cooldown - dt);
-  player.laser_cooldown = Math.max(0, player.laser_cooldown - dt);
+  player.thrust_cooldown = clampMin(player.thrust_cooldown - dt);
+  player.laser_cooldown = clampMin(player.laser_cooldown - dt);
 
-  player.p.x += player.v.x * dt;
-  player.p.y += player.v.y * dt;
-  player.angle += player.rot * player_rot_speed * dt;
-  if (player.angle > 360) player.angle -= 360;
-  if (player.angle < 0) player.angle += 360;
+  player.p.add(player.v.copy().scale(dt));
 
   if (player.p.x - player.w > w) {
     player.p.x -= w;
@@ -347,7 +447,7 @@ function updatePlayer(dt, player) {
 function drawPlayer(player) {
   drawPlayerShip(player.p.x, player.p.y, player.angle, player.w, player.h);
   if (player.shield) {
-    drawPlayerShield(player.p.x, player.p.y, player.angle, player.h / 1.7);
+    drawPlayerShield(player.p.x, player.p.y, player.angle, player.r);
   }
 
   if (player.thrusts.length) {
@@ -361,7 +461,7 @@ function drawPlayer(player) {
         200 * (1 - pa) + 55
       }, 0, ${1 - pa})`;
       ctx.beginPath();
-      ctx.ellipse(0, 0, size, size, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 0, size, size, 0, 0, PI2);
       ctx.fill();
       ctx.restore();
     }
@@ -400,17 +500,13 @@ function drawPlayer(player) {
 }
 
 function updateAsteroid(dt, asteroid) {
-  asteroid.angle += asteroid.rot * asteroid_rot_speed * dt;
-  if (asteroid.angle > 360) asteroid.angle -= 360;
-  if (asteroid.angle < 0) asteroid.angle += 360;
+  asteroid.angle = wrapDeg(asteroid.angle + asteroid.rot * dt);
+  asteroid.p.add(asteroid.v.copy().scale(dt));
 
-  asteroid.p.x += asteroid.v.x * asteroid_speed;
-  asteroid.p.y += asteroid.v.y * asteroid_speed;
-
-  if (asteroid.p.x - asteroid.r > w) asteroid.p.x -= w;
-  else if (asteroid.p.x + asteroid.r < 0) asteroid.p.x += w;
-  if (asteroid.p.y - asteroid.r > h) asteroid.p.y -= h;
-  else if (asteroid.p.y + asteroid.r < 0) asteroid.p.y += h;
+  if (asteroid.p.x - asteroid.size / 2 > w) asteroid.p.x -= w;
+  else if (asteroid.p.x + asteroid.size / 2 < 0) asteroid.p.x += w;
+  if (asteroid.p.y - asteroid.size / 2 > h) asteroid.p.y -= h;
+  else if (asteroid.p.y + asteroid.size / 2 < 0) asteroid.p.y += h;
 }
 
 function drawAsteroid(asteroid) {
@@ -418,54 +514,54 @@ function drawAsteroid(asteroid) {
     asteroid.p.x,
     asteroid.p.y,
     asteroid.angle,
-    asteroid.r,
-    asteroid.r,
-    asteroid.r / 5,
+    asteroid.size,
+    asteroid.size,
+    asteroid.size / 5,
     asteroid_levels - asteroid.level + 1
   );
 
   let xx = null;
   let yy = null;
-  if (asteroid.p.x - asteroid.r < 0) xx = asteroid.p.x + w;
-  else if (asteroid.p.x + asteroid.r > w) xx = asteroid.p.x - w;
-  if (asteroid.p.y - asteroid.r < 0) yy = asteroid.p.y + h;
-  else if (asteroid.p.y + asteroid.r > h) yy = asteroid.p.y - h;
+  if (asteroid.p.x - asteroid.size / 2 < 0) xx = asteroid.p.x + w;
+  else if (asteroid.p.x + asteroid.size / 2 > w) xx = asteroid.p.x - w;
+  if (asteroid.p.y - asteroid.size / 2 < 0) yy = asteroid.p.y + h;
+  else if (asteroid.p.y + asteroid.size / 2 > h) yy = asteroid.p.y - h;
 
   if (xx !== null && yy !== null) {
     drawRoundRect(
       xx,
       asteroid.p.y,
       asteroid.angle,
-      asteroid.r,
-      asteroid.r,
-      asteroid.r / 5,
+      asteroid.size,
+      asteroid.size,
+      asteroid.size / 5,
       asteroid_levels - asteroid.level + 1
     );
     drawRoundRect(
       asteroid.p.x,
       yy,
       asteroid.angle,
-      asteroid.r,
-      asteroid.r,
-      asteroid.r / 5,
+      asteroid.size,
+      asteroid.size,
+      asteroid.size / 5,
       asteroid_levels - asteroid.level + 1
     );
     drawRoundRect(
       xx,
       asteroid.p.y,
       asteroid.angle,
-      asteroid.r,
-      asteroid.r,
-      asteroid.r / 5,
+      asteroid.size,
+      asteroid.size,
+      asteroid.size / 5,
       asteroid_levels - asteroid.level + 1
     );
     drawRoundRect(
       xx,
       yy,
       asteroid.angle,
-      asteroid.r,
-      asteroid.r,
-      asteroid.r / 5,
+      asteroid.size,
+      asteroid.size,
+      asteroid.size / 5,
       asteroid_levels - asteroid.level + 1
     );
   } else if (xx !== null) {
@@ -473,9 +569,9 @@ function drawAsteroid(asteroid) {
       xx,
       asteroid.p.y,
       asteroid.angle,
-      asteroid.r,
-      asteroid.r,
-      asteroid.r / 5,
+      asteroid.size,
+      asteroid.size,
+      asteroid.size / 5,
       asteroid_levels - asteroid.level + 1
     );
   } else if (yy !== null) {
@@ -483,9 +579,9 @@ function drawAsteroid(asteroid) {
       asteroid.p.x,
       yy,
       asteroid.angle,
-      asteroid.r,
-      asteroid.r,
-      asteroid.r / 5,
+      asteroid.size,
+      asteroid.size,
+      asteroid.size / 5,
       asteroid_levels - asteroid.level + 1
     );
   }
@@ -565,7 +661,7 @@ function drawPlayerShield(x, y, angle, r) {
   ctx.fillStyle = gradient;
   ctx.strokeStyle = "rgba(100, 255, 100, 1)";
   ctx.beginPath();
-  ctx.ellipse(0, 0, r, r, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, r, r, 0, 0, PI2);
   ctx.fill();
   ctx.stroke();
   ctx.restore();
