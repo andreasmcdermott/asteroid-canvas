@@ -30,6 +30,9 @@ export function wrap(v, min, max) {
 }
 
 export function clamp(v, min, max) {
+  if (min > max) {
+    [min, max] = [max, min];
+  }
   return Math.max(Math.min(v, max), min);
 }
 
@@ -39,4 +42,10 @@ export function clampMin(v, min = 0) {
 
 export function clampMax(v, max) {
   return Math.min(v, max);
+}
+
+export function lerp(v0, v1, ct, t) {
+  let span = v1 - v0;
+  let p = ct / t;
+  return clamp(v0 + span * p, v0, v1);
 }
