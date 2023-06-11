@@ -49,7 +49,7 @@ function initEventListeners() {
       h = window.innerHeight;
       canvas.setAttribute("width", w);
       canvas.setAttribute("height", h);
-      gameState.wsize.set(w, h);
+      gameState.win.set(w, h);
     },
     { passive: true }
   );
@@ -76,7 +76,7 @@ function initEventListeners() {
   window.addEventListener(
     "mousemove",
     (e) => {
-      // mouse_active = true;
+      gameState.mouse_active = true;
       input["MouseX"] = e.x;
       input["MouseY"] = e.y;
     },

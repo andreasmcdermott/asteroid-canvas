@@ -20,3 +20,4 @@ export let thrust_cooldown = 30;
 export let max_shield_charge = 5000;
 export let shield_recharge_rate = 1;
 export let shield_discharge_cooldown = 2500;
+export let player_invincibilty_max = 2500;

@@ -1,5 +1,6 @@
 import {
   Vec2,
+  Rgba,
   RAD2DEG,
   PI,
   PI2,
@@ -34,23 +35,151 @@ import {
   shield_discharge_cooldown,
   asteroid_sizes,
   asteroid_rot_speed,
+  player_invincibilty_max,
+  player_w,
+  player_h,
 } from "./constants.mjs";
 import { drawParticles, updateParticles, particle } from "./particles.mjs";
 
 let ctx;
-let wsize;
+let win;
+
+let screens = { play, menu, pause, gameOver, gameWin };
 
 export function gameLoop(dt, input, debug, gameState) {
-  wsize = gameState.wsize;
+  win = gameState.win;
   ctx = gameState.ctx;
 
-  let { asteroids, player, stars } = gameState;
+  let screen = screens[gameState.screen];
 
-  ctx.clearRect(0, 0, wsize.w, wsize.h);
+  ctx.clearRect(0, 0, win.w, win.h);
 
-  for (let i = 0; i < stars.length; ++i) {
-    drawStar(ctx, stars[i].p.x, stars[i].p.y, stars[i].r);
+  for (let i = 0; i < gameState.const_entities.length; ++i) {
+    let e = gameState.const_entities[i];
+    drawStar(ctx, e.p.x, e.p.y, e.r);
   }
+
+  screen(dt, input, gameState);
+
+  if (debug) {
+    ctx.fillStyle = "white";
+    ctx.textAlign = "right";
+    ctx.fillText((1000 / dt).toFixed(2), win.w - 10, 10);
+  }
+}
+
+function pause(dt, input, gameState) {}
+
+function menu(dt, input, gameState) {
+  for (let i = 0; i < gameState.asteroids.length; ++i) {
+    let asteroid = gameState.asteroids[i];
+    updateAsteroid(dt, asteroid, gameState);
+    drawAsteroid(asteroid, gameState);
+  }
+  let actions = {
+    Select: input["Enter"] || input[" "],
+    Up: input["ArrowUp"],
+    Down: input["ArrowDown"],
+  };
+
+  if (actions.Up) {
+    if (!gameState.menu_key_down) {
+      gameState.menu_key_down = true;
+      gameState.menu_active = clampMin(gameState.menu_active - 1, 0);
+    }
+  } else if (actions.Down) {
+    if (!gameState.menu_key_down) {
+      gameState.menu_key_down = true;
+      gameState.menu_active = clampMax(
+        gameState.menu_active + 1,
+        gameState.menu_items.length - 1
+      );
+    }
+  } else if (actions.Select) {
+    if (!gameState.menu_key_down) {
+      gameState.menu_key_down = true;
+      if (gameState.menu_screen === "help") {
+        gameState.menu_screen = "";
+      } else {
+        if (gameState.menu_items[gameState.menu_active] === "Help") {
+          gameState.menu_screen = "help";
+        } else {
+          gameState.screen = "play";
+          gameState.level = -1;
+          gameState.difficulty =
+            gameState.menu_items[gameState.menu_active].toLowerCase();
+        }
+      }
+    }
+  } else {
+    gameState.menu_key_down = false;
+  }
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+  ctx.fillRect(0, 0, win.w, win.h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "white";
+  ctx.font = "80px monospace";
+  ctx.fillText("Asteroids", win.w / 2, win.h / 3);
+
+  if (gameState.menu_screen === "help") {
+    ctx.font = "16px monospace";
+    ctx.fillStyle = "white";
+    ctx.fillText(
+      "Shoot: Left Mouse Button / Space / Period",
+      win.w / 2,
+      win.h / 2
+    );
+    ctx.fillText(
+      "Shield: Right Mouse Button / Shift / Comma",
+      win.w / 2,
+      win.h / 2 + 40
+    );
+    ctx.fillText("Thruster: Up / W", win.w / 2, win.h / 2 + 80);
+    ctx.fillText("Turn: Left|Right / A|D", win.w / 2, win.h / 2 + 120);
+
+    ctx.font = "22px monospace";
+    ctx.fillText("Okay", win.w / 2, win.h / 2 + 240);
+    let size = ctx.measureText("Okay");
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(
+      win.w / 2 - size.actualBoundingBoxLeft - 20,
+      win.h / 2 + 240 - 20,
+      size.width + 40,
+      40
+    );
+  } else {
+    ctx.font = "22px monospace";
+    for (let i = 0; i < gameState.menu_items.length; ++i) {
+      ctx.fillText(gameState.menu_items[i], win.w / 2, win.h / 2 + 60 * i);
+
+      if (i === gameState.menu_active) {
+        let size = ctx.measureText(gameState.menu_items[i]);
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          win.w / 2 - size.actualBoundingBoxLeft - 20,
+          win.h / 2 + 60 * i - 20,
+          size.width + 40,
+          40
+        );
+      }
+    }
+  }
+}
+
+function gameOver(dt, input, gameState) {}
+
+function gameWin(dt, input, gameState) {}
+
+function play(dt, input, gameState) {
+  if (gameState.level < 0) {
+    gotoNextLevel(gameState);
+  }
+
+  let { asteroids, player } = gameState;
 
   let valid_asteroids = [];
   for (let i = 0; i < asteroids.length; ++i) {
@@ -70,12 +199,12 @@ export function gameLoop(dt, input, debug, gameState) {
       ) {
         laser.destroyed = true;
         destroyed = true;
-        particle(gameState, rnd(3, 8) * (asteroid_levels - asteroid.level), {
+        particle(gameState, rnd(15, 30) * (asteroid_levels - asteroid.level), {
           x: asteroid.p.x,
           y: asteroid.p.y,
           v0x: [-1, 1],
           v0y: [-1, 1],
-          v0v: [0.08, 0.12],
+          v0v: [0.01, 0.24],
           v1x: 0,
           v1y: 0,
           v1v: 0,
@@ -85,9 +214,9 @@ export function gameLoop(dt, input, debug, gameState) {
           ca0: [0.5, 1],
           ca1: 0,
           r0: [2, 5],
-          r1: 0,
-          delay: [0, 50],
-          life: [1000, 2000],
+          r1: 0.1,
+          delay: [0, 150],
+          life: [1000, 3000],
         });
 
         let lvl = asteroid.level + 1;
@@ -112,47 +241,75 @@ export function gameLoop(dt, input, debug, gameState) {
       drawAsteroid(asteroid, gameState);
       valid_asteroids.push(asteroid);
     }
-
     gameState.asteroids = valid_asteroids;
 
-    for (let i = 0; i < asteroids.length; ++i) {
-      let asteroid = asteroids[i];
-      let d = distance(player.p, asteroid.p);
-      if (d < player.r + asteroid.size / 2) {
-        if (player.shield) {
-          player.v = asteroid.v.copy().sub(player.v).scale(0.85);
-          asteroid.v = asteroid.v.copy().sub(player.v).scale(0.85);
-          asteroid.p.add(
-            asteroid.v
+    if (player.invincibility <= 0) {
+      for (let i = 0; i < asteroids.length; ++i) {
+        let asteroid = asteroids[i];
+        let d = distance(player.p, asteroid.p);
+        if (d < player.r + asteroid.size / 2) {
+          if (player.shield) {
+            // let plen = player.v.len();
+            // let alen = asteroid.v.len();
+            // player.v = asteroid.v
+            //   .copy()
+            //   .sub(player.v)
+            //   .normalize()
+            //   .scale((plen + alen) * 0.5);
+            // asteroid.v = asteroid.v
+            //   .copy()
+            //   .sub(player.v)
+            //   .normalize()
+            //   .scale((alen + plen) * 0.5);
+            // asteroid.p.add(
+            //   asteroid.v
+            //     .copy()
+            //     .normalize()
+            //     .scale(player.r + asteroid.size / 2 - d)
+            // );
+            player.v = player.p
               .copy()
+              .sub(asteroid.p)
               .normalize()
-              .scale(player.r + asteroid.size / 2 - d)
-          );
-        } else {
-          if (!gameState.player_destroyed) {
-            gameState.player_destroyed = true;
-            particle(gameState, rnd(35, 50), {
-              x: player.p.x,
-              y: player.p.y,
-              v0x: [-1, 1],
-              v0y: [-1, 1],
-              v0v: [0.1, 0.25],
-              v1x: 0,
-              v1y: 0,
-              v1v: 0,
-              cr0: [200, 255],
-              cg0: [128, 200],
-              cb0: 0,
-              ca0: [0.55, 0.75],
-              ca1: 0,
-              r0: [6, 8],
-              r1: 0,
-              delay: [0, 50],
-              life: [500, 1500],
-            });
+              .scale(player.v.len() * 0.95);
+            asteroid.v = asteroid.p
+              .copy()
+              .sub(player.p)
+              .normalize()
+              .scale(player.v.len() * 0.75);
+            asteroid.p.add(
+              asteroid.v
+                .copy()
+                .normalize()
+                .scale(player.r + asteroid.size / 2 - d)
+            );
+          } else {
+            if (!gameState.player_destroyed) {
+              player.lasers = [];
+              gameState.player_destroyed = true;
+              particle(gameState, rnd(85, 150), {
+                x: player.p.x,
+                y: player.p.y,
+                v0x: [-1, 1],
+                v0y: [-1, 1],
+                v0v: [0.01, 0.5],
+                v1x: 0,
+                v1y: 0,
+                v1v: 0,
+                cr0: [200, 255],
+                cg0: [128, 200],
+                cb0: 0,
+                ca0: [0.55, 0.75],
+                ca1: 0,
+                r0: [6, 10],
+                r1: 0,
+                delay: [0, 50],
+                life: [500, 1500],
+              });
+            }
           }
+          break;
         }
-        break;
       }
     }
   }
@@ -161,44 +318,77 @@ export function gameLoop(dt, input, debug, gameState) {
   drawParticles(gameState);
 
   if (asteroids.length === 0) {
-    ctx.lineWidht = 4;
-    ctx.strokeStyle = "black";
     ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-    ctx.fillRect(0, 0, wsize.w, wsize.h);
+    ctx.fillRect(0, 0, win.w, win.h);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "white";
     ctx.font = "80px monospace";
-    ctx.fillText("You Win", wsize.w / 2, wsize.h / 2 - 50);
+    ctx.fillText("You Win", win.w / 2, win.h / 2 - 50);
     ctx.font = "22px monospace";
-    ctx.fillText("Press Enter to Restart", wsize.w / 2, wsize.h / 2 + 50);
+    ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
     if (input.Enter) {
-      location.reload();
+      gameState.level = -1;
     }
   } else if (gameState.player_destroyed) {
-    ctx.lineWidht = 4;
-    ctx.strokeStyle = "black";
     ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-    ctx.fillRect(0, 0, wsize.w, wsize.h);
+    ctx.fillRect(0, 0, win.w, win.h);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "white";
     ctx.font = "80px monospace";
-    ctx.fillText("Game Over", wsize.w / 2, wsize.h / 2 - 50);
+    ctx.fillText("Game Over", win.w / 2, win.h / 2 - 50);
     ctx.font = "22px monospace";
-    ctx.fillText("Press Enter to Restart", wsize.w / 2, wsize.h / 2 + 50);
+    ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
     if (input.Enter) {
-      location.reload();
+      gameState.level = -1;
+      gameState.player_destroyed = false;
     }
   } else {
     updatePlayer(dt, player, input, gameState);
     drawPlayer(player, gameState);
     drawPlayerGui(player);
   }
-  if (debug) {
-    ctx.fillStyle = "white";
-    ctx.textAlign = "right";
-    ctx.fillText((1000 / dt).toFixed(2), wsize.w - 10, 10);
+}
+
+function gotoNextLevel(gameState) {
+  gameState.level += 1;
+
+  gameState.player = {
+    w: player_w,
+    h: player_h,
+    r: player_h / 1.7,
+    p: new Vec2(gameState.win.w / 2, gameState.win.h / 2),
+    angle: 270,
+    rot: 0,
+    v: Vec2.origin.copy(),
+    thrusts: [],
+    lasers: [],
+    laser_cooldown: 0,
+    thrust_cooldown: 0,
+    shield: false,
+    shield_charge: max_shield_charge,
+    shield_cooldown_timer: 0,
+    invincibility: player_invincibilty_max,
+  };
+
+  switch (gameState.level) {
+    case 0: {
+      gameState.asteroids = [];
+      for (let i = 0; i < 3; ++i) {
+        gameState.asteroids.push({
+          level: 0,
+          size: rnd(...asteroid_sizes[0]),
+          p: new Vec2(rnd(gameState.win.w), rnd(gameState.win.h)),
+          angle: rnd(360),
+          rot: rnd(-1, 1) * rnd(...asteroid_rot_speed),
+          v: new Vec2(rnd(-1, 1), rnd(-1, 1))
+            .normalize()
+            .scale(rnd(...asteroid_speed)),
+        });
+      }
+      break;
+    }
   }
 }
 
@@ -208,7 +398,7 @@ function updatePlayer(dt, player, input, gameState) {
     let laser = player.lasers[i];
     if (laser.destroyed) continue;
     laser.p.add(laser.v.copy().scale(dt * laser_speed));
-    if (point_inside(laser.p, Vec2.origin, wsize)) {
+    if (point_inside(laser.p, Vec2.origin, win)) {
       valid_lasers.push(laser);
     }
   }
@@ -263,10 +453,10 @@ function updatePlayer(dt, player, input, gameState) {
       let v = Vec2.fromAngle(player.angle);
       let x = player.p.x - v.x * player.h * 0.6;
       let y = player.p.y - v.y * player.h * 0.6;
-      if (x < 0) x += wsize.w;
-      else if (x > wsize.w) x -= wsize.w;
-      if (y < 0) y += wsize.h;
-      else if (y > wsize.h) y += wsize.h;
+      if (x < 0) x += win.w;
+      else if (x > win.w) x -= win.w;
+      if (y < 0) y += win.h;
+      else if (y > win.h) y += win.h;
       let p = new Vec2(x, y);
       player.thrusts.push({
         p,
@@ -275,7 +465,7 @@ function updatePlayer(dt, player, input, gameState) {
     }
   }
 
-  if (actions.Shield && player.shield_charge > 0) {
+  if (actions.Shield && player.shield_charge > 0 && player.invincibility <= 0) {
     player.shield_recharging = false;
     player.shield = true;
   } else {
@@ -300,16 +490,16 @@ function updatePlayer(dt, player, input, gameState) {
     }
   }
 
-  if (!player.shield && actions.Fire) {
+  if (!player.shield && actions.Fire && player.invincibility <= 0) {
     if (player.laser_cooldown <= 0) {
       player.laser_cooldown = laser_cooldown;
       let v = Vec2.fromAngle(player.angle);
       let x = player.p.x + v.x * player.h * 0.5;
       let y = player.p.y + v.y * player.h * 0.5;
-      if (x < 0) x += wsize.w;
-      else if (x > wsize.w) x -= wsize.w;
-      if (y < 0) y += wsize.h;
-      else if (y > wsize.h) y += wsize.h;
+      if (x < 0) x += win.w;
+      else if (x > win.w) x -= win.w;
+      if (y < 0) y += win.h;
+      else if (y > win.h) y += win.h;
       let p = new Vec2(x, y);
       player.lasers.push({
         v,
@@ -321,23 +511,41 @@ function updatePlayer(dt, player, input, gameState) {
 
   player.thrust_cooldown = clampMin(player.thrust_cooldown - dt);
   player.laser_cooldown = clampMin(player.laser_cooldown - dt);
+  player.invincibility = clampMin(player.invincibility - dt);
 
   player.p.add(player.v.copy().scale(dt));
 
-  if (player.p.x - player.w > wsize.w) {
-    player.p.x -= wsize.x;
+  if (player.p.x - player.w > win.w) {
+    player.p.x -= win.x;
   } else if (player.p.x + player.w < 0) {
-    player.p.x += wsize.x;
+    player.p.x += win.x;
   }
-  if (player.p.y - player.h > wsize.y) {
-    player.p.y -= wsize.y;
+  if (player.p.y - player.h > win.y) {
+    player.p.y -= win.y;
   } else if (player.p.y + player.h < 0) {
-    player.p.y += wsize.y;
+    player.p.y += win.y;
   }
 }
 
 function drawPlayer(player) {
-  drawPlayerShip(ctx, player.p.x, player.p.y, player.angle, player.w, player.h);
+  let strokeStyle = new Rgba(255, 255, 255, 1);
+  if (player.invincibility > 0) {
+    strokeStyle.alpha(
+      clampMin(
+        Math.sin((player.invincibility / player_invincibilty_max) * PI * 24),
+        0.25
+      )
+    );
+  }
+  drawPlayerShip(
+    ctx,
+    player.p.x,
+    player.p.y,
+    player.angle,
+    player.w,
+    player.h,
+    strokeStyle
+  );
   if (player.shield) {
     drawPlayerShield(ctx, player.p.x, player.p.y, player.angle, player.r);
   }
@@ -376,15 +584,15 @@ function drawPlayer(player) {
 
   let xx = null;
   let yy = null;
-  if (player.p.x - player.w < 0) xx = player.p.x + wsize.w;
-  else if (player.p.x + player.w > wsize.w) xx = player.p.x - wsize.w;
-  if (player.p.y - player.h < 0) yy = player.p.y + wsize.h;
-  else if (player.p.y + player.h > wsize.h) yy = player.p.y - wsize.h;
+  if (player.p.x - player.w < 0) xx = player.p.x + win.w;
+  else if (player.p.x + player.w > win.w) xx = player.p.x - win.w;
+  if (player.p.y - player.h < 0) yy = player.p.y + win.h;
+  else if (player.p.y + player.h > win.h) yy = player.p.y - win.h;
 
   if (xx !== null || yy !== null) {
     if (xx === null) xx = player.p.x;
     if (yy === null) yy = player.p.y;
-    drawPlayerShip(ctx, xx, yy, player.angle, player.w, player.h);
+    drawPlayerShip(ctx, xx, yy, player.angle, player.w, player.h, strokeStyle);
     if (player.shield) {
       drawPlayerShield(ctx, xx, yy, player.angle, player.h / 1.7);
     }
@@ -422,10 +630,10 @@ function updateAsteroid(dt, asteroid) {
   asteroid.angle = wrapDeg(asteroid.angle + asteroid.rot * dt);
   asteroid.p.add(asteroid.v.copy().scale(dt));
 
-  if (asteroid.p.x - asteroid.size / 2 > wsize.w) asteroid.p.x -= wsize.w;
-  else if (asteroid.p.x + asteroid.size / 2 < 0) asteroid.p.x += wsize.w;
-  if (asteroid.p.y - asteroid.size / 2 > wsize.h) asteroid.p.y -= wsize.h;
-  else if (asteroid.p.y + asteroid.size / 2 < 0) asteroid.p.y += wsize.h;
+  if (asteroid.p.x - asteroid.size / 2 > win.w) asteroid.p.x -= win.w;
+  else if (asteroid.p.x + asteroid.size / 2 < 0) asteroid.p.x += win.w;
+  if (asteroid.p.y - asteroid.size / 2 > win.h) asteroid.p.y -= win.h;
+  else if (asteroid.p.y + asteroid.size / 2 < 0) asteroid.p.y += win.h;
 }
 
 function drawAsteroid(asteroid) {
@@ -442,12 +650,10 @@ function drawAsteroid(asteroid) {
 
   let xx = null;
   let yy = null;
-  if (asteroid.p.x - asteroid.size / 2 < 0) xx = asteroid.p.x + wsize.w;
-  else if (asteroid.p.x + asteroid.size / 2 > wsize.w)
-    xx = asteroid.p.x - wsize.w;
-  if (asteroid.p.y - asteroid.size / 2 < 0) yy = asteroid.p.y + wsize.h;
-  else if (asteroid.p.y + asteroid.size / 2 > wsize.h)
-    yy = asteroid.p.y - wsize.h;
+  if (asteroid.p.x - asteroid.size / 2 < 0) xx = asteroid.p.x + win.w;
+  else if (asteroid.p.x + asteroid.size / 2 > win.w) xx = asteroid.p.x - win.w;
+  if (asteroid.p.y - asteroid.size / 2 < 0) yy = asteroid.p.y + win.h;
+  else if (asteroid.p.y + asteroid.size / 2 > win.h) yy = asteroid.p.y - win.h;
 
   if (xx !== null && yy !== null) {
     drawRoundRect(

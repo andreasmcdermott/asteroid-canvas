@@ -32,22 +32,12 @@ export function drawRoundRect(
   ctx.restore();
 }
 
-export function drawPlayerShip(
-  ctx,
-  x,
-  y,
-  angle,
-  w,
-  h,
-  lineWidth = 2,
-  strokeStyle = "white",
-  fillStyle = "black"
-) {
+export function drawPlayerShip(ctx, x, y, angle, w, h, strokeStyle = "white") {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle * DEG2RAD);
-  ctx.lineWidth = lineWidth;
-  ctx.fillStyle = fillStyle;
+  ctx.lineWidth = 2;
+  ctx.fillStyle = "black";
   ctx.strokeStyle = strokeStyle;
   // Wings
   ctx.beginPath();
