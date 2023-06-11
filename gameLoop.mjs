@@ -1,19 +1,22 @@
-import { Vec2, Rgba, RAD2DEG, PI, PI2, rnd } from "./math.mjs";
 import {
-  drawRoundRect,
-  drawPlayerShip,
-  drawPlayerShield,
-  drawStar,
-} from "./drawing.mjs";
-import {
+  Vec2,
+  RAD2DEG,
+  PI,
+  PI2,
+  rnd,
   point_inside,
   wrapDeg,
   clampMin,
   clampMax,
   line_intersect_circle,
   distance,
-  lerp,
 } from "./utils.mjs";
+import {
+  drawRoundRect,
+  drawPlayerShip,
+  drawPlayerShield,
+  drawStar,
+} from "./drawing.mjs";
 import {
   asteroid_levels,
   player_rot_speed,
@@ -32,6 +35,7 @@ import {
   asteroid_sizes,
   asteroid_rot_speed,
 } from "./constants.mjs";
+import { drawParticles, updateParticles, particle } from "./particles.mjs";
 
 let ctx;
 let wsize;
@@ -40,7 +44,7 @@ export function gameLoop(dt, input, debug, gameState) {
   wsize = gameState.wsize;
   ctx = gameState.ctx;
 
-  let { asteroids, player, stars, particles } = gameState;
+  let { asteroids, player, stars } = gameState;
 
   ctx.clearRect(0, 0, wsize.w, wsize.h);
 
@@ -66,22 +70,25 @@ export function gameLoop(dt, input, debug, gameState) {
       ) {
         laser.destroyed = true;
         destroyed = true;
-        let num_particles = rnd(3, 8) * (asteroid_levels - asteroid.level);
-        for (let i = 0; i < num_particles; ++i) {
-          let v = new Vec2(rnd(-1, 1), rnd(-1, 1)).normalize();
-          particles.push({
-            p: asteroid.p.copy(),
-            v0: v.copy().scale(rnd(0.08, 0.12)),
-            v1: v.copy().scale(0),
-            c0: Rgba.white.copy().alpha(rnd(0.5, 1)),
-            c1: Rgba.white.copy().alpha(0),
-            r0: rnd(2, 5),
-            r1: 0,
-            delay: rnd(0, 50),
-            life: rnd(1000, 2000),
-            t: 0,
-          });
-        }
+        particle(gameState, rnd(3, 8) * (asteroid_levels - asteroid.level), {
+          x: asteroid.p.x,
+          y: asteroid.p.y,
+          v0x: [-1, 1],
+          v0y: [-1, 1],
+          v0v: [0.08, 0.12],
+          v1x: 0,
+          v1y: 0,
+          v1v: 0,
+          cr0: 255,
+          cg0: 255,
+          cb0: 255,
+          ca0: [0.5, 1],
+          ca1: 0,
+          r0: [2, 5],
+          r1: 0,
+          delay: [0, 50],
+          life: [1000, 2000],
+        });
 
         let lvl = asteroid.level + 1;
         if (lvl < asteroid_levels) {
@@ -105,48 +112,43 @@ export function gameLoop(dt, input, debug, gameState) {
       drawAsteroid(asteroid, gameState);
       valid_asteroids.push(asteroid);
     }
-  }
-  gameState.asteroids = valid_asteroids;
 
-  for (let i = 0; i < asteroids.length; ++i) {
-    let asteroid = asteroids[i];
-    let d = distance(player.p, asteroid.p);
-    if (d < player.r + asteroid.size / 2) {
-      if (player.shield) {
-        player.v = player.p
-          .copy()
-          .sub(asteroid.p)
-          .normalize()
-          .scale(player.v.len() * 0.75);
-        asteroid.v = asteroid.p
-          .copy()
-          .sub(player.p)
-          .normalize()
-          .scale(player.v.len() ? player.v.len() * 0.5 : asteroid.v.len());
-        asteroid.p.add(
-          asteroid.v
-            .copy()
-            .normalize()
-            .scale(player.r + asteroid.size / 2 - d)
-        );
-      } else {
-        if (!gameState.player_destroyed) {
-          gameState.player_destroyed = true;
-          let num_particles = rnd(35, 50);
-          for (let i = 0; i < num_particles; ++i) {
-            let v = new Vec2(rnd(-1, 1), rnd(-1, 1)).normalize();
-            let c = new Rgba(rnd(200, 255), rnd(128, 200), 0, rnd(0.55, 0.75));
-            particles.push({
-              p: player.p.copy(),
-              v0: v.copy().scale(rnd(0.1, 0.25)),
-              v1: v.copy().scale(0),
-              c0: c.copy(),
-              c1: c.copy().alpha(0),
-              r0: rnd(6, 8),
+    gameState.asteroids = valid_asteroids;
+
+    for (let i = 0; i < asteroids.length; ++i) {
+      let asteroid = asteroids[i];
+      let d = distance(player.p, asteroid.p);
+      if (d < player.r + asteroid.size / 2) {
+        if (player.shield) {
+          player.v = asteroid.v.copy().sub(player.v).scale(0.85);
+          asteroid.v = asteroid.v.copy().sub(player.v).scale(0.85);
+          asteroid.p.add(
+            asteroid.v
+              .copy()
+              .normalize()
+              .scale(player.r + asteroid.size / 2 - d)
+          );
+        } else {
+          if (!gameState.player_destroyed) {
+            gameState.player_destroyed = true;
+            particle(gameState, rnd(35, 50), {
+              x: player.p.x,
+              y: player.p.y,
+              v0x: [-1, 1],
+              v0y: [-1, 1],
+              v0v: [0.1, 0.25],
+              v1x: 0,
+              v1y: 0,
+              v1v: 0,
+              cr0: [200, 255],
+              cg0: [128, 200],
+              cb0: 0,
+              ca0: [0.55, 0.75],
+              ca1: 0,
+              r0: [6, 8],
               r1: 0,
-              delay: rnd(0, 50),
-              life: rnd(500, 1500),
-              t: 0,
+              delay: [0, 50],
+              life: [500, 1500],
             });
           }
         }
@@ -155,10 +157,13 @@ export function gameLoop(dt, input, debug, gameState) {
     }
   }
 
+  updateParticles(dt, gameState);
+  drawParticles(gameState);
+
   if (asteroids.length === 0) {
     ctx.lineWidht = 4;
     ctx.strokeStyle = "black";
-    ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
     ctx.fillRect(0, 0, wsize.w, wsize.h);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -173,7 +178,7 @@ export function gameLoop(dt, input, debug, gameState) {
   } else if (gameState.player_destroyed) {
     ctx.lineWidht = 4;
     ctx.strokeStyle = "black";
-    ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
     ctx.fillRect(0, 0, wsize.w, wsize.h);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -195,33 +200,6 @@ export function gameLoop(dt, input, debug, gameState) {
     ctx.textAlign = "right";
     ctx.fillText((1000 / dt).toFixed(2), wsize.w - 10, 10);
   }
-
-  let valid_particles = [];
-  for (let i = 0; i < particles.length; ++i) {
-    let particle = particles[i];
-    particle.delay -= dt;
-    if (particle.t < particle.life) {
-      valid_particles.push(particle);
-      if (particle.delay <= 0) {
-        particle.t += dt;
-        let r =
-          particle.r ||
-          lerp(particle.r0, particle.r1, particle.t, particle.life);
-        let c =
-          particle.c ||
-          Rgba.lerp(particle.c0, particle.c1, particle.t, particle.life);
-        let v =
-          particle.v ||
-          Vec2.lerp(particle.v0, particle.v1, particle.t, particle.life);
-        particle.p.add(v.copy().scale(dt));
-        ctx.fillStyle = c;
-        ctx.beginPath();
-        ctx.ellipse(particle.p.x, particle.p.y, r, r, 0, 0, PI2);
-        ctx.fill();
-      }
-    }
-  }
-  gameState.particles = valid_particles;
 }
 
 function updatePlayer(dt, player, input, gameState) {

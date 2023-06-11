@@ -1,4 +1,4 @@
-import { Vec2, rnd } from "./math.mjs";
+import { Vec2, rnd } from "./utils.mjs";
 import {
   player_w,
   player_h,
@@ -7,6 +7,7 @@ import {
   asteroid_rot_speed,
   asteroid_speed,
 } from "./constants.mjs";
+import { initParticles } from "./particles.mjs";
 
 export function initGame(w, h, ctx) {
   let gameState = {
@@ -15,10 +16,11 @@ export function initGame(w, h, ctx) {
     wsize: new Vec2(w, h),
     ctx,
     player: undefined,
-    asterouds: undefined,
+    asteroids: undefined,
     stars: undefined,
-    particles: [],
+    particles: undefined,
   };
+  initParticles(gameState);
   initConstants(gameState);
   initLevel(gameState);
   return gameState;

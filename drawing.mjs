@@ -1,4 +1,4 @@
-import { DEG2RAD, PI2 } from "./math.mjs";
+import { DEG2RAD, PI2 } from "./utils.mjs";
 
 export function drawStar(ctx, x, y, r) {
   ctx.beginPath();
