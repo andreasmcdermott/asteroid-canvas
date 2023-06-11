@@ -46,7 +46,7 @@ let win;
 
 let screens = { play, menu, pause, gameOver, gameWin };
 
-export function gameLoop(dt, input, debug, gameState) {
+export function gameLoop(dt, input, lastInput, debug, gameState) {
   win = gameState.win;
   ctx = gameState.ctx;
 
@@ -59,7 +59,11 @@ export function gameLoop(dt, input, debug, gameState) {
     drawStar(ctx, e.p.x, e.p.y, e.r);
   }
 
-  screen(dt, input, gameState);
+  if (gameState.screen === "pause") {
+    play(0, {}, {}, gameState);
+  }
+
+  screen(dt, input, lastInput, gameState);
 
   if (debug) {
     ctx.fillStyle = "white";
@@ -68,51 +72,58 @@ export function gameLoop(dt, input, debug, gameState) {
   }
 }
 
-function pause(dt, input, gameState) {}
+function pause(dt, input, lastInput, gameState) {
+  if (input.Escape && !lastInput.Escape) {
+    gameState.screen = "play";
+    return;
+  }
 
-function menu(dt, input, gameState) {
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+  ctx.fillRect(0, 0, win.w, win.h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "white";
+  ctx.font = "80px monospace";
+  ctx.fillText("Asteroids", win.w / 2, win.h / 3);
+}
+
+function menu(dt, input, lastInput, gameState) {
   for (let i = 0; i < gameState.asteroids.length; ++i) {
     let asteroid = gameState.asteroids[i];
     updateAsteroid(dt, asteroid, gameState);
     drawAsteroid(asteroid, gameState);
   }
   let actions = {
-    Select: input["Enter"] || input[" "],
-    Up: input["ArrowUp"],
-    Down: input["ArrowDown"],
+    Select:
+      (input["Enter"] && !lastInput["Enter"]) ||
+      (input[" "] && !lastInput[" "]),
+    Up:
+      (input["ArrowUp"] && !lastInput["ArrowUp"]) || (input.w && !lastInput.w),
+    Down:
+      (input["ArrowDown"] && !lastInput["ArrowDown"]) ||
+      (input.s && !lastInput.s),
   };
 
   if (actions.Up) {
-    if (!gameState.menu_key_down) {
-      gameState.menu_key_down = true;
-      gameState.menu_active = clampMin(gameState.menu_active - 1, 0);
-    }
+    gameState.menu_active = clampMin(gameState.menu_active - 1, 0);
   } else if (actions.Down) {
-    if (!gameState.menu_key_down) {
-      gameState.menu_key_down = true;
-      gameState.menu_active = clampMax(
-        gameState.menu_active + 1,
-        gameState.menu_items.length - 1
-      );
-    }
+    gameState.menu_active = clampMax(
+      gameState.menu_active + 1,
+      gameState.menu_items.length - 1
+    );
   } else if (actions.Select) {
-    if (!gameState.menu_key_down) {
-      gameState.menu_key_down = true;
-      if (gameState.menu_screen === "help") {
-        gameState.menu_screen = "";
+    if (gameState.menu_screen === "help") {
+      gameState.menu_screen = "";
+    } else {
+      if (gameState.menu_items[gameState.menu_active] === "Help") {
+        gameState.menu_screen = "help";
       } else {
-        if (gameState.menu_items[gameState.menu_active] === "Help") {
-          gameState.menu_screen = "help";
-        } else {
-          gameState.screen = "play";
-          gameState.level = -1;
-          gameState.difficulty =
-            gameState.menu_items[gameState.menu_active].toLowerCase();
-        }
+        gameState.screen = "play";
+        gameState.level = -1;
+        gameState.difficulty =
+          gameState.menu_items[gameState.menu_active].toLowerCase();
       }
     }
-  } else {
-    gameState.menu_key_down = false;
   }
 
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
@@ -170,11 +181,16 @@ function menu(dt, input, gameState) {
   }
 }
 
-function gameOver(dt, input, gameState) {}
+function gameOver(dt, input, lastInput, gameState) {}
 
-function gameWin(dt, input, gameState) {}
+function gameWin(dt, input, lastInput, gameState) {}
 
-function play(dt, input, gameState) {
+function play(dt, input, lastInput, gameState) {
+  if (input.Escape && !lastInput.Escape) {
+    gameState.screen = "pause";
+    return;
+  }
+
   if (gameState.level < 0) {
     gotoNextLevel(gameState);
   }
@@ -292,7 +308,7 @@ function play(dt, input, gameState) {
                 y: player.p.y,
                 v0x: [-1, 1],
                 v0y: [-1, 1],
-                v0v: [0.01, 0.5],
+                v0v: [0.01, 0.35],
                 v1x: 0,
                 v1y: 0,
                 v1v: 0,
@@ -327,7 +343,7 @@ function play(dt, input, gameState) {
     ctx.fillText("You Win", win.w / 2, win.h / 2 - 50);
     ctx.font = "22px monospace";
     ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
-    if (input.Enter) {
+    if (input.Enter && !lastInput.Enter) {
       gameState.level = -1;
     }
   } else if (gameState.player_destroyed) {
@@ -340,7 +356,7 @@ function play(dt, input, gameState) {
     ctx.fillText("Game Over", win.w / 2, win.h / 2 - 50);
     ctx.font = "22px monospace";
     ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
-    if (input.Enter) {
+    if (input.Enter && !lastInput.Enter) {
       gameState.level = -1;
       gameState.player_destroyed = false;
     }
@@ -442,29 +458,6 @@ function updatePlayer(dt, player, input, gameState) {
     player.angle = wrapDeg(player.angle + player.rot * player_rot_speed * dt);
   }
 
-  if (actions.Accelerate) {
-    let acc = Vec2.fromAngle(player.angle);
-    player.v.add(acc.scale(dt * player_acc));
-    if (player.v.len() > player_max_speed) {
-      player.v.normalize().scale(player_max_speed);
-    }
-    if (player.thrust_cooldown <= 0) {
-      player.thrust_cooldown = thrust_cooldown;
-      let v = Vec2.fromAngle(player.angle);
-      let x = player.p.x - v.x * player.h * 0.6;
-      let y = player.p.y - v.y * player.h * 0.6;
-      if (x < 0) x += win.w;
-      else if (x > win.w) x -= win.w;
-      if (y < 0) y += win.h;
-      else if (y > win.h) y += win.h;
-      let p = new Vec2(x, y);
-      player.thrusts.push({
-        p,
-        age: 0,
-      });
-    }
-  }
-
   if (actions.Shield && player.shield_charge > 0 && player.invincibility <= 0) {
     player.shield_recharging = false;
     player.shield = true;
@@ -487,6 +480,29 @@ function updatePlayer(dt, player, input, gameState) {
         player.shield_charge + dt * shield_recharge_rate,
         max_shield_charge
       );
+    }
+  }
+
+  if (!player.shield && actions.Accelerate) {
+    let acc = Vec2.fromAngle(player.angle);
+    player.v.add(acc.scale(dt * player_acc));
+    if (player.v.len() > player_max_speed) {
+      player.v.normalize().scale(player_max_speed);
+    }
+    if (player.thrust_cooldown <= 0) {
+      player.thrust_cooldown = thrust_cooldown;
+      let v = Vec2.fromAngle(player.angle);
+      let x = player.p.x - v.x * player.h * 0.6;
+      let y = player.p.y - v.y * player.h * 0.6;
+      if (x < 0) x += win.w;
+      else if (x > win.w) x -= win.w;
+      if (y < 0) y += win.h;
+      else if (y > win.h) y += win.h;
+      let p = new Vec2(x, y);
+      player.thrusts.push({
+        p,
+        age: 0,
+      });
     }
   }
 

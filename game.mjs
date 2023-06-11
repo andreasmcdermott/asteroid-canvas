@@ -43,7 +43,6 @@ function initMenu(gameState) {
   gameState.menu_items = ["Easy", "Medium", "Hard", "Help"];
   gameState.menu_active = 0;
   gameState.menu_screen = "";
-  gameState.menu_key_down = false;
 }
 
 function initTempAsteroids(gameState) {

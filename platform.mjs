@@ -5,11 +5,12 @@ let ctx;
 let w, h;
 let debug = false;
 let input = {};
+let lastInput = {};
 let gameState;
 
 let _GameLoop;
-function gameLoop(dt, input, debug) {
-  _GameLoop.gameLoop(dt, input, debug, gameState);
+function gameLoop(dt, input, lastInput, debug) {
+  _GameLoop.gameLoop(dt, input, lastInput, debug, gameState);
 }
 
 function loadGame(cb) {
@@ -36,7 +37,8 @@ export function init(canvas) {
 function nextFrame(t) {
   let dt = t - lt; // dt is ~16ms
   lt = t;
-  gameLoop(dt, input, debug);
+  gameLoop(dt, input, lastInput, debug);
+  lastInput = { ...input };
   requestAnimationFrame(nextFrame);
 }
 1;
