@@ -3,14 +3,11 @@ import { initGame } from "./game.mjs";
 let lt;
 let ctx;
 let w, h;
-let debug = false;
-let input = {};
-let lastInput = {};
 let gameState;
 
 let _GameLoop;
-function gameLoop(dt, input, lastInput, debug) {
-  _GameLoop.gameLoop(dt, input, lastInput, debug, gameState);
+function gameLoop(dt) {
+  _GameLoop.gameLoop(dt, gameState);
 }
 
 function loadGame(cb) {
@@ -27,8 +24,8 @@ export function init(canvas) {
   canvas.setAttribute("height", h);
   ctx = canvas.getContext("2d");
   loadGame(() => {
-    initEventListeners();
     gameState = initGame(w, h, ctx);
+    initEventListeners();
     lt = performance.now();
     requestAnimationFrame(nextFrame);
   });
@@ -37,8 +34,8 @@ export function init(canvas) {
 function nextFrame(t) {
   let dt = t - lt; // dt is ~16ms
   lt = t;
-  gameLoop(dt, input, lastInput, debug);
-  lastInput = { ...input };
+  gameLoop(dt);
+  gameState.lastInput = { ...gameState.input };
   requestAnimationFrame(nextFrame);
 }
 1;
@@ -59,7 +56,7 @@ function initEventListeners() {
   window.addEventListener(
     "keydown",
     (e) => {
-      input[e.key] = true;
+      gameState.input[e.key] = true;
     },
     { passive: true }
   );
@@ -67,10 +64,10 @@ function initEventListeners() {
   window.addEventListener(
     "keyup",
     (e) => {
-      delete input[e.key];
+      delete gameState.input[e.key];
 
       if (e.key === "-") loadGame();
-      if (e.key === "Backspace") debug = !debug;
+      if (e.key === "Backspace") gameState.debug = !gameState.debug;
     },
     { passive: true }
   );
@@ -79,8 +76,8 @@ function initEventListeners() {
     "mousemove",
     (e) => {
       gameState.mouse_active = true;
-      input["MouseX"] = e.x;
-      input["MouseY"] = e.y;
+      gameState.input["MouseX"] = e.x;
+      gameState.input["MouseY"] = e.y;
     },
     { passive: true }
   );
@@ -88,7 +85,7 @@ function initEventListeners() {
   window.addEventListener(
     "mousedown",
     (e) => {
-      input[`Mouse${e.button}`] = true;
+      gameState.input[`Mouse${e.button}`] = true;
     },
     { passive: true }
   );
@@ -96,7 +93,7 @@ function initEventListeners() {
   window.addEventListener(
     "mouseup",
     (e) => {
-      delete input[`Mouse${e.button}`];
+      delete gameState.input[`Mouse${e.button}`];
     },
     { passive: true }
   );

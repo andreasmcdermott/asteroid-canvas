@@ -21,6 +21,10 @@ export class Rgba {
     );
   }
 
+  static toString(r, g, b, a) {
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  }
+
   constructor(r, g, b, a = 1) {
     this.r = r;
     this.g = g;
@@ -30,17 +34,27 @@ export class Rgba {
   copy() {
     return new Rgba(this.r, this.g, this.b, this.a);
   }
+  set(r, g, b, a) {
+    this.r = r;
+    this.g = g;
+    this.b = b;
+    this.a = a;
+  }
   alpha(a) {
     this.a = a;
     return this;
   }
   toString() {
-    return `rgba(${this.r}, ${this.g}, ${this.b}, ${this.a})`;
+    return Rgba.toString(this.r, this.g, this.b, this.a);
   }
 }
 
 export class Vec2 {
   static origin = new Vec2(0, 0);
+
+  static rnd(min_x, max_x, min_y, max_y) {
+    return new Vec2(rnd(min_x, max_x), rnd(min_y, max_y));
+  }
 
   static fromAngle(angle) {
     let rad = angle * DEG2RAD;
