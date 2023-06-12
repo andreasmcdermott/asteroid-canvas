@@ -6,15 +6,16 @@ import { Asteroid } from "./asteroids.mjs";
 import { Player } from "./players.mjs";
 import { Projectile } from "./projectiles.mjs";
 
+export { gameLoop } from "./gameLoop.mjs";
+
 export function initGame(w, h, ctx) {
   let gameState = {
     ctx,
     mouse_active: false,
-    player_destroyed: false,
     win: new Vec2(w, h),
     input: {},
     lastInput: {},
-    players: new EntityList(2, Player),
+    player: new Player(),
     projectiles: new EntityList(200, Projectile),
     asteroids: new EntityList(100, Asteroid),
     stars: new EntityList(100, Star),

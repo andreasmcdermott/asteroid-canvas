@@ -20,18 +20,19 @@ export class EntityList {
   constructor(size, Clazz) {
     this.list = Array.from({ length: size }, () => new Clazz());
     this.index = 0;
+    this.activeCount = 0;
   }
 
   get size() {
     return this.list.length;
   }
 
-  get activeCount() {
-    let c = 0;
+  *[Symbol.iterator]() {
     for (let i = 0; i < this.list.length; ++i) {
-      if (this.list[i].active) c++;
+      if (this.list[i].active) {
+        yield this.list[i];
+      }
     }
-    return c;
   }
 
   reset() {
@@ -55,8 +56,10 @@ export class EntityList {
   }
 
   updateAll(dt, gameState) {
+    this.activeCount = 0;
     for (let i = 0; i < this.list.length; ++i) {
       if (this.list[i].active) {
+        this.activeCount++;
         this.list[i].update(dt, gameState);
       }
     }

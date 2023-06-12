@@ -152,15 +152,55 @@ function menu(dt, gameState) {
   }
 }
 
-function gameOver(dt, gameState) {}
+function gameOver(dt, gameState) {
+  let { ctx, win } = gameState;
 
-function gameWin(dt, gameState) {}
+  gameState.projectiles.updateAll(dt, gameState);
+  gameState.asteroids.updateAll(dt, gameState);
+  gameState.particles.updateAll(dt, gameState);
+
+  gameState.projectiles.drawAll(ctx, gameState);
+  gameState.asteroids.drawAll(ctx, gameState);
+  gameState.particles.drawAll(ctx, gameState);
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+  ctx.fillRect(0, 0, win.w, win.h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "white";
+  ctx.font = "80px monospace";
+  ctx.fillText("Game Over", win.w / 2, win.h / 2 - 50);
+  ctx.font = "22px monospace";
+  ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
+  if (gameState.input.Enter && !gameState.lastInput.Enter) {
+    gameState.level = -1;
+    gameState.screen = "play";
+  }
+}
+
+function gameWin(dt, gameState) {
+  let { ctx, win } = gameState;
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+  ctx.fillRect(0, 0, win.w, win.h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "white";
+  ctx.font = "80px monospace";
+  ctx.fillText("You Win", win.w / 2, win.h / 2 - 50);
+  ctx.font = "22px monospace";
+  ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
+  if (gameState.input.Enter && !gameState.lastInput.Enter) {
+    gameState.level = -1;
+    gameState.screen = "play";
+  }
+}
 
 function play(dt, gameState) {
   if (
     gameState.input.Escape &&
     !gameState.lastInput.Escape &&
-    !gameState.player_destroyed &&
+    !gameState.player.destroyed &&
     gameState.asteroids.activeCount > 0
   ) {
     gameState.screen = "pause";
@@ -173,185 +213,29 @@ function play(dt, gameState) {
 
   gameState.projectiles.updateAll(dt, gameState);
   gameState.asteroids.updateAll(dt, gameState);
-  gameState.players.updateAll(dt, gameState);
+  gameState.player.update(dt, gameState);
   gameState.particles.updateAll(dt, gameState);
 
   gameState.projectiles.drawAll(ctx, gameState);
   gameState.asteroids.drawAll(ctx, gameState);
-  gameState.players.drawAll(ctx, gameState);
+  gameState.player.draw(ctx, gameState);
   gameState.particles.drawAll(ctx, gameState);
 
-  // let valid_asteroids = [];
-  // for (let i = 0; i < asteroids.length; ++i) {
-  //   let asteroid = asteroids[i];
-
-  //   let destroyed = false;
-  //   for (let i = 0; i < player.lasers.length; ++i) {
-  //     let laser = player.lasers[i];
-  //     if (laser.destroyed) continue;
-  //     if (
-  //       line_intersect_circle(
-  //         laser.p,
-  //         laser.p.copy().add(laser.v.copy().scale(laser_len)),
-  //         asteroid.p,
-  //         asteroid.size / 2
-  //       )
-  //     ) {
-  //       laser.destroyed = true;
-  //       destroyed = true;
-  //       particle(gameState, rnd(15, 30) * (asteroid_levels - asteroid.level), {
-  //         x: asteroid.p.x,
-  //         y: asteroid.p.y,
-  //         v0x: [-1, 1],
-  //         v0y: [-1, 1],
-  //         v0v: [0.01, 0.24],
-  //         v1x: 0,
-  //         v1y: 0,
-  //         v1v: 0,
-  //         cr0: 255,
-  //         cg0: 255,
-  //         cb0: 255,
-  //         ca0: [0.5, 1],
-  //         ca1: 0,
-  //         r0: [2, 5],
-  //         r1: 0.1,
-  //         delay: [0, 150],
-  //         life: [1000, 3000],
-  //       });
-
-  //       let lvl = asteroid.level + 1;
-  //       if (lvl < asteroid_levels) {
-  //         for (let i = 0; i < 4; ++i) {
-  //           valid_asteroids.push({
-  //             level: lvl,
-  //             size: rnd(...asteroid_sizes[lvl]),
-  //             p: asteroid.p.copy(),
-  //             angle: rnd(360),
-  //             rot: rnd(-1, 1) * rnd(...asteroid_rot_speed),
-  //             v: new Vec2(rnd(-1, 1), rnd(-1, 1))
-  //               .normalize()
-  //               .scale(rnd(...asteroid_speed)),
-  //           });
-  //         }
-  //       }
-  //     }
-  //   }
-  //   if (!destroyed) {
-  // updateAsteroid(dt, asteroid, gameState);
-  //     drawAsteroid(asteroid, gameState);
-  //     valid_asteroids.push(asteroid);
-  //   }
-  //   gameState.asteroids = valid_asteroids;
-
-  //   if (player.invincibility <= 0) {
-  //     for (let i = 0; i < asteroids.length; ++i) {
-  //       let asteroid = asteroids[i];
-  //       let d = distance(player.p, asteroid.p);
-  //       if (d < player.r + asteroid.size / 2) {
-  //         if (player.shield) {
-  //           // let plen = player.v.len();
-  //           // let alen = asteroid.v.len();
-  //           // player.v = asteroid.v
-  //           //   .copy()
-  //           //   .sub(player.v)
-  //           //   .normalize()
-  //           //   .scale((plen + alen) * 0.5);
-  //           // asteroid.v = asteroid.v
-  //           //   .copy()
-  //           //   .sub(player.v)
-  //           //   .normalize()
-  //           //   .scale((alen + plen) * 0.5);
-  //           // asteroid.p.add(
-  //           //   asteroid.v
-  //           //     .copy()
-  //           //     .normalize()
-  //           //     .scale(player.r + asteroid.size / 2 - d)
-  //           // );
-  //           player.v = player.p
-  //             .copy()
-  //             .sub(asteroid.p)
-  //             .normalize()
-  //             .scale(player.v.len() * 0.95);
-  //           asteroid.v = asteroid.p
-  //             .copy()
-  //             .sub(player.p)
-  //             .normalize()
-  //             .scale(player.v.len() * 0.75);
-  //           asteroid.p.add(
-  //             asteroid.v
-  //               .copy()
-  //               .normalize()
-  //               .scale(player.r + asteroid.size / 2 - d)
-  //           );
-  //         } else {
-  //           if (!gameState.player_destroyed) {
-  //             player.lasers = [];
-  //             gameState.player_destroyed = true;
-  //             particle(gameState, rnd(85, 150), {
-  //               x: player.p.x,
-  //               y: player.p.y,
-  //               v0x: [-1, 1],
-  //               v0y: [-1, 1],
-  //               v0v: [0.01, 0.35],
-  //               v1x: 0,
-  //               v1y: 0,
-  //               v1v: 0,
-  //               cr0: [200, 255],
-  //               cg0: [128, 200],
-  //               cb0: 0,
-  //               ca0: [0.55, 0.75],
-  //               ca1: 0,
-  //               r0: [6, 10],
-  //               r1: 0,
-  //               delay: [0, 50],
-  //               life: [500, 1500],
-  //             });
-  //           }
-  //         }
-  //         break;
-  //       }
-  //     }
-  //   }
-  // }
-
   if (gameState.asteroids.activeCount === 0) {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-    ctx.fillRect(0, 0, win.w, win.h);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "white";
-    ctx.font = "80px monospace";
-    ctx.fillText("You Win", win.w / 2, win.h / 2 - 50);
-    ctx.font = "22px monospace";
-    ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
-    if (gameState.input.Enter && !gameState.lastInput.Enter) {
-      gameState.level = -1;
-    }
-  } else if (gameState.player_destroyed) {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-    ctx.fillRect(0, 0, win.w, win.h);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "white";
-    ctx.font = "80px monospace";
-    ctx.fillText("Game Over", win.w / 2, win.h / 2 - 50);
-    ctx.font = "22px monospace";
-    ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
-    if (gameState.input.Enter && !gameState.lastInput.Enter) {
-      gameState.level = -1;
-      gameState.player_destroyed = false;
-    }
+    gameState.screen = "gameWin";
   }
 }
 
 function gotoNextLevel(gameState) {
   gameState.level += 1;
 
-  gameState.players.push(gameState.win.w / 2, gameState.win.h / 2);
+  gameState.particles.reset();
+  gameState.projectiles.reset();
+  gameState.asteroids.reset();
+  gameState.player.activate(gameState.win.w / 2, gameState.win.h / 2);
 
   switch (gameState.level) {
     case 0: {
-      gameState.asteroids.reset();
       let level = 0;
       for (let i = 0; i < 3; ++i) {
         gameState.asteroids.push(

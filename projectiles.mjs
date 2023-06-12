@@ -9,12 +9,16 @@ export class Projectile extends Entity {
     super();
     this.angle = 0;
     this.v = new Vec2();
+    this.len = 0;
+    this.speed = 0;
   }
 
   activate(x, y, angle) {
     super.activate(x, y);
     this.angle = angle;
     this.v = Vec2.fromAngle(angle);
+    this.len = laser_len;
+    this.speed = laser_speed;
   }
 
   draw(ctx, gameState) {
@@ -24,15 +28,13 @@ export class Projectile extends Entity {
     ctx.strokeStyle = "skyblue";
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.lineTo(this.v.x * laser_len, this.v.y * laser_len);
+    ctx.lineTo(this.v.x * this.len, this.v.y * this.len);
     ctx.stroke();
     ctx.restore();
   }
 
   update(dt, gameState) {
-    this.p.add(this.v.copy().scale(dt * laser_speed));
-    if (!point_inside(this.p, Vec2.origin, gameState.win)) {
-      this.deactivate();
-    }
+    this.p.add(this.v.copy().scale(dt * this.speed));
+    if (!point_inside(this.p, Vec2.origin, gameState.win)) this.deactivate();
   }
 }

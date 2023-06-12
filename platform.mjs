@@ -1,18 +1,16 @@
-import { initGame } from "./game.mjs";
-
 let lt;
 let ctx;
 let w, h;
 let gameState;
 
-let _GameLoop;
+let _Game;
 function gameLoop(dt) {
-  _GameLoop.gameLoop(dt, gameState);
+  _Game.gameLoop(dt, gameState);
 }
 
 function loadGame(cb) {
-  import(`./gameLoop.mjs?t=${Date.now()}`).then((module) => {
-    _GameLoop = module;
+  import(`./game.mjs?t=${Date.now()}`).then((module) => {
+    _Game = module;
     if (cb) cb();
   });
 }
@@ -24,7 +22,7 @@ export function init(canvas) {
   canvas.setAttribute("height", h);
   ctx = canvas.getContext("2d");
   loadGame(() => {
-    gameState = initGame(w, h, ctx);
+    gameState = _Game.initGame(w, h, ctx);
     initEventListeners();
     lt = performance.now();
     requestAnimationFrame(nextFrame);
@@ -97,6 +95,10 @@ function initEventListeners() {
     },
     { passive: true }
   );
+
+  window.addEventListener("blur", (e) => {
+    gameState.screen = "pause";
+  });
 
   window.addEventListener("contextmenu", (e) => {
     e.preventDefault();

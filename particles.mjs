@@ -34,7 +34,9 @@ export class Particle extends Entity {
     r0,
     r1,
     delay,
-    life
+    life,
+    style,
+    lineWidth
   ) {
     super.activate(x, y);
     this.v0.set(v0x, v0y).normalize().scale(v0v);
@@ -46,15 +48,21 @@ export class Particle extends Entity {
     this.delay = delay;
     this.life = life;
     this.t = 0;
+    this.style = style;
+    this.lineWidth = lineWidth;
   }
   draw(ctx) {
     let r = lerp(this.r0, this.r1, this.t, this.life);
     let c = Rgba.lerp(this.c0, this.c1, this.t, this.life);
 
-    ctx.fillStyle = c;
+    if (this.style === "fill") ctx.fillStyle = c;
+    else {
+      ctx.strokeStyle = c;
+      ctx.lineWidth = this.lineWidth;
+    }
     ctx.beginPath();
     ctx.ellipse(this.p.x, this.p.y, r, r, 0, 0, PI2);
-    ctx.fill();
+    this.style === "fill" ? ctx.fill() : ctx.stroke();
   }
   update(dt) {
     this.delay -= dt;
@@ -98,6 +106,8 @@ export function particle(
     r1 = r0,
     delay = 0,
     life = 0,
+    style = "fill",
+    lineWidth = 0,
   }
 ) {
   for (let i = 0; i < count; ++i) {
@@ -121,7 +131,9 @@ export function particle(
       val(r0),
       val(r1),
       val(delay),
-      val(life)
+      val(life),
+      style,
+      lineWidth
     );
   }
 }

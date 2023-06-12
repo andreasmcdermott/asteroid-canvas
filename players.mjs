@@ -9,6 +9,8 @@ import {
   PI,
   wrapDeg,
   RAD2DEG,
+  distance,
+  rnd,
 } from "./utils.mjs";
 import { particle } from "./particles.mjs";
 
@@ -22,22 +24,27 @@ let thrust_cooldown = 30;
 let max_shield_charge = 5000;
 let shield_recharge_rate = 1;
 let shield_discharge_cooldown = 2500;
-let player_invincibilty_max = 2500;
+let player_invincibilty_max = 1500;
+let restart_cooldown = 1000;
 
 export class Player extends Entity {
   constructor() {
     super();
     this.w = 24;
     this.h = 64;
-    this.r = 0;
+    this.r = this.h / 1.7;
     this.angle = 0;
     this.rot = 0;
     this.v = new Vec2();
+    this.destroyed = false;
+    this.restart_timer = 0;
+    this.lives = 0;
   }
 
   activate(x, y) {
     super.activate(x, y);
-    this.r = this.h / 1.7;
+    this.destroyed = false;
+    this.restart_timer = 0;
     this.angle = 270;
     this.rot = 0;
     this.v.set(0, 0);
@@ -47,6 +54,62 @@ export class Player extends Entity {
     this.shield_charge = max_shield_charge;
     this.shield_cooldown_timer = 0;
     this.invincibility = player_invincibilty_max;
+    this.lives = 3;
+  }
+
+  _restart(gameState) {
+    this.destroyed = false;
+    this.restart_timer = 0;
+    this.angle = 270;
+    this.rot = 0;
+    this.p.set(gameState.win.w / 2, gameState.win.h / 2);
+    this.v.set(0, 0);
+    this.laser_cooldown = 0;
+    this.thrust_cooldown = 0;
+    this.shield = false;
+    this.shield_charge = max_shield_charge;
+    this.shield_cooldown_timer = 0;
+    this.invincibility = player_invincibilty_max;
+  }
+
+  _destroy(gameState) {
+    this.lives--;
+    this.destroyed = true;
+    this.restart_timer = restart_cooldown;
+    particle(gameState, rnd(100), {
+      x: this.p.x,
+      y: this.p.y,
+      v0x: [-1, 1],
+      v0y: [-1, 1],
+      v0v: [0.01, 0.35],
+      v1x: 0,
+      v1y: 0,
+      v1v: 0,
+      cr0: [200, 255],
+      cg0: [128, 200],
+      cb0: 0,
+      ca0: [0.55, 0.75],
+      ca1: 0,
+      r0: [6, 10],
+      r1: 0,
+      delay: [0, 50],
+      life: [500, 1500],
+    });
+    particle(gameState, 3, {
+      x: this.p.x,
+      y: this.p.y,
+      life: 250,
+      cr0: 255,
+      cg0: 200,
+      cb0: 0,
+      ca0: 0.5,
+      ca1: 0,
+      r0: 0,
+      r1: this.h * 3,
+      style: "stroke",
+      lineWidth: 4,
+      delay: [0, 50],
+    });
   }
 
   _drawGui(ctx) {
@@ -74,6 +137,37 @@ export class Player extends Entity {
           : clampMin(this.shield_charge / max_shield_charge)),
       16
     );
+
+    let i = 0;
+    for (i; i < this.lives; ++i) {
+      drawShip(
+        ctx,
+        250 + i * (this.w / 3 + 20),
+        20,
+        270,
+        this.w / 3,
+        this.h / 3,
+        "rgba(255, 255, 255, 1)",
+        "rgba(0, 0, 0, 0.5)",
+        1
+      );
+    }
+
+    if (this.restart_timer > 0) {
+      drawShip(
+        ctx,
+        250 + i * (this.w / 3 + 20),
+        20,
+        270,
+        this.w / 3,
+        this.h / 3,
+        `rgba(255, 255, 255, ${Math.sin(
+          (this.restart_timer / restart_cooldown) * PI * 8
+        )})`,
+        "rgba(0, 0, 0, 0.5)",
+        1
+      );
+    }
   }
 
   _draw(ctx, x, y, strokeStyle) {
@@ -82,35 +176,49 @@ export class Player extends Entity {
   }
 
   draw(ctx, gameState) {
-    let strokeStyle = Rgba.white.copy();
+    if (this.active && !this.destroyed) {
+      let strokeStyle = Rgba.white.copy();
 
-    if (this.invincibility > 0) {
-      strokeStyle.alpha(
-        clampMin(
-          Math.sin((this.invincibility / player_invincibilty_max) * PI * 24),
-          0.25
-        )
-      );
+      if (this.invincibility > 0) {
+        strokeStyle.alpha(
+          clampMin(
+            Math.sin((this.invincibility / player_invincibilty_max) * PI * 12),
+            0.25
+          )
+        );
+      }
+
+      let xx = null;
+      let yy = null;
+      if (this.p.x - this.w < 0) xx = this.p.x + gameState.win.w;
+      else if (this.p.x + this.w > gameState.win.w)
+        xx = this.p.x - gameState.win.w;
+      if (this.p.y - this.h < 0) yy = this.p.y + gameState.win.h;
+      else if (this.p.y + this.h > gameState.win.h)
+        yy = this.p.y - gameState.win.h;
+
+      this._draw(ctx, this.p.x, this.p.y, strokeStyle);
+      if (xx !== null) this._draw(ctx, xx, this.p.y, strokeStyle);
+      if (yy !== null) this._draw(ctx, this.p.x, yy, strokeStyle);
+      if (xx !== null && yy !== null) this._draw(ctx, xx, yy, strokeStyle);
     }
-
-    let xx = null;
-    let yy = null;
-    if (this.p.x - this.w < 0) xx = this.p.x + gameState.win.w;
-    else if (this.p.x + this.w > gameState.win.w)
-      xx = this.p.x - gameState.win.w;
-    if (this.p.y - this.h < 0) yy = this.p.y + gameState.win.h;
-    else if (this.p.y + this.h > gameState.win.h)
-      yy = this.p.y - gameState.win.h;
-
-    this._draw(ctx, this.p.x, this.p.y, strokeStyle);
-    if (xx !== null) this._draw(ctx, xx, this.p.y, strokeStyle);
-    if (yy !== null) this._draw(ctx, this.p.x, yy, strokeStyle);
-    if (xx !== null && yy !== null) this._draw(ctx, xx, yy, strokeStyle);
 
     this._drawGui(ctx);
   }
 
   update(dt, gameState) {
+    if (!this.active) return;
+    if (this.destroyed) {
+      if (this.lives > 0) {
+        this.restart_timer = clampMin(this.restart_timer - dt);
+
+        if (this.restart_timer <= 0) this._restart(gameState);
+      } else {
+        gameState.screen = "gameOver";
+      }
+      return;
+    }
+
     let actions = {
       RotLeft: gameState.input.ArrowLeft || gameState.input.a,
       RotRight: gameState.input.ArrowRight || gameState.input.d,
@@ -216,15 +324,77 @@ export class Player extends Entity {
     this.thrust_cooldown = clampMin(this.thrust_cooldown - dt);
     this.laser_cooldown = clampMin(this.laser_cooldown - dt);
     this.invincibility = clampMin(this.invincibility - dt);
+
+    // Collision with asteroids
+
+    if (this.invincibility <= 0) {
+      for (let asteroid of gameState.asteroids) {
+        let d = distance(this.p, asteroid.p);
+        if (d < this.r + asteroid.radius) {
+          if (this.shield) {
+            // let plen = player.v.len();
+            // let alen = asteroid.v.len();
+            // player.v = asteroid.v
+            //   .copy()
+            //   .sub(player.v)
+            //   .normalize()
+            //   .scale((plen + alen) * 0.5);
+            // asteroid.v = asteroid.v
+            //   .copy()
+            //   .sub(player.v)
+            //   .normalize()
+            //   .scale((alen + plen) * 0.5);
+            // asteroid.p.add(
+            //   asteroid.v
+            //     .copy()
+            //     .normalize()
+            //     .scale(player.r + asteroid.size / 2 - d)
+            // );
+            this.v = this.p
+              .copy()
+              .sub(asteroid.p)
+              .normalize()
+              .scale(this.v.len() * 0.95);
+            asteroid.v = asteroid.p
+              .copy()
+              .sub(this.p)
+              .normalize()
+              .scale(this.v.len() * 0.75);
+            asteroid.p.add(
+              asteroid.v
+                .copy()
+                .normalize()
+                .scale(this.r + asteroid.radius - d)
+            );
+          } else {
+            if (this.active) {
+              this._destroy(gameState);
+            }
+
+            break;
+          }
+        }
+      }
+    }
   }
 }
 
-function drawShip(ctx, x, y, angle, w, h, strokeStyle = "white") {
+function drawShip(
+  ctx,
+  x,
+  y,
+  angle,
+  w,
+  h,
+  strokeStyle = "white",
+  fillStyle = "black",
+  lineWidth = 2
+) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle * DEG2RAD);
-  ctx.lineWidth = 2;
-  ctx.fillStyle = "black";
+  ctx.lineWidth = lineWidth;
+  ctx.fillStyle = fillStyle;
   ctx.strokeStyle = strokeStyle;
   // Wings
   ctx.beginPath();
