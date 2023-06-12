@@ -17,15 +17,11 @@ import { particle } from "./particles.mjs";
 let player_acc = 0.0006;
 let player_max_speed = 0.3;
 let player_rot_speed = 0.5;
-let laser_cooldown = 200;
 let thrust_size = [6, 12];
 let thrust_max_age = 300;
 let thrust_cooldown = 30;
-let max_shield_charge = 5000;
-let shield_recharge_rate = 1;
-let shield_discharge_cooldown = 2500;
 let player_invincibilty_max = 1500;
-let restart_cooldown = 1000;
+let restart_cooldown = 500;
 
 export class Player extends Entity {
   constructor() {
@@ -41,8 +37,8 @@ export class Player extends Entity {
     this.lives = 0;
   }
 
-  activate(x, y) {
-    super.activate(x, y);
+  activate(gameState, x, y) {
+    super.activate(gameState, x, y);
     this.destroyed = false;
     this.restart_timer = 0;
     this.angle = 270;
@@ -51,7 +47,7 @@ export class Player extends Entity {
     this.laser_cooldown = 0;
     this.thrust_cooldown = 0;
     this.shield = false;
-    this.shield_charge = max_shield_charge;
+    this.shield_charge = gameState.settings.max_shield_charge;
     this.shield_cooldown_timer = 0;
     this.invincibility = player_invincibilty_max;
     this.lives = 3;
@@ -67,12 +63,13 @@ export class Player extends Entity {
     this.laser_cooldown = 0;
     this.thrust_cooldown = 0;
     this.shield = false;
-    this.shield_charge = max_shield_charge;
+    this.shield_charge = gameState.settings.max_shield_charge;
     this.shield_cooldown_timer = 0;
     this.invincibility = player_invincibilty_max;
   }
 
   _destroy(gameState) {
+    gameState.screen_shake = 500;
     this.lives--;
     this.destroyed = true;
     this.restart_timer = restart_cooldown;
@@ -112,15 +109,16 @@ export class Player extends Entity {
     });
   }
 
-  _drawGui(ctx) {
+  _drawGui(ctx, gameState) {
     ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgb(255, 255, 25)";
+    ctx.strokeStyle = "rgb(25, 255, 25)";
     ctx.fillStyle =
       this.shield_charge <= 0
         ? `rgba(255, 25, 25, ${
             this.shield_recharging
               ? Math.sin(
-                  (this.shield_cooldown_timer / shield_discharge_cooldown) *
+                  (this.shield_cooldown_timer /
+                    gameState.settings.shield_discharge_cooldown) *
                     PI *
                     32
                 )
@@ -134,7 +132,9 @@ export class Player extends Entity {
       196 *
         (this.shield_charge <= 0
           ? 1
-          : clampMin(this.shield_charge / max_shield_charge)),
+          : clampMin(
+              this.shield_charge / gameState.settings.max_shield_charge
+            )),
       16
     );
 
@@ -203,7 +203,7 @@ export class Player extends Entity {
       if (xx !== null && yy !== null) this._draw(ctx, xx, yy, strokeStyle);
     }
 
-    this._drawGui(ctx);
+    this._drawGui(ctx, gameState);
   }
 
   update(dt, gameState) {
@@ -257,14 +257,15 @@ export class Player extends Entity {
     if (this.shield) {
       this.shield_charge = clampMin(this.shield_charge - dt);
       if (this.shield_charge === 0) {
-        this.shield_cooldown_timer = shield_discharge_cooldown;
+        this.shield_cooldown_timer =
+          gameState.settings.shield_discharge_cooldown;
       }
     } else if (this.shield_recharging) {
       this.shield_cooldown_timer = clampMin(this.shield_cooldown_timer - dt);
       if (this.shield_cooldown_timer <= 0) {
         this.shield_charge = clampMax(
-          this.shield_charge + dt * shield_recharge_rate,
-          max_shield_charge
+          this.shield_charge + dt * gameState.settings.shield_recharge_rate,
+          gameState.settings.max_shield_charge
         );
       }
     }
@@ -302,7 +303,7 @@ export class Player extends Entity {
 
     if (!this.shield && actions.Fire && this.invincibility <= 0) {
       if (this.laser_cooldown <= 0) {
-        this.laser_cooldown = laser_cooldown;
+        this.laser_cooldown = gameState.settings.laser_cooldown;
         let v = Vec2.fromAngle(this.angle);
         let x = this.p.x + v.x * this.h * 0.5;
         let y = this.p.y + v.y * this.h * 0.5;
@@ -310,7 +311,7 @@ export class Player extends Entity {
         else if (x > gameState.win.w) x -= gameState.win.w;
         if (y < 0) y += gameState.win.h;
         else if (y > gameState.win.h) y += gameState.win.h;
-        gameState.projectiles.push(x, y, this.angle);
+        gameState.projectiles.push(gameState, x, y, this.angle);
       }
     }
 
@@ -327,39 +328,23 @@ export class Player extends Entity {
 
     // Collision with asteroids
 
+    // TODO: Handle collision when wrapping around
+
     if (this.invincibility <= 0) {
       for (let asteroid of gameState.asteroids) {
         let d = distance(this.p, asteroid.p);
         if (d < this.r + asteroid.radius) {
           if (this.shield) {
-            // let plen = player.v.len();
-            // let alen = asteroid.v.len();
-            // player.v = asteroid.v
-            //   .copy()
-            //   .sub(player.v)
-            //   .normalize()
-            //   .scale((plen + alen) * 0.5);
-            // asteroid.v = asteroid.v
-            //   .copy()
-            //   .sub(player.v)
-            //   .normalize()
-            //   .scale((alen + plen) * 0.5);
-            // asteroid.p.add(
-            //   asteroid.v
-            //     .copy()
-            //     .normalize()
-            //     .scale(player.r + asteroid.size / 2 - d)
-            // );
             this.v = this.p
               .copy()
               .sub(asteroid.p)
               .normalize()
-              .scale(this.v.len() * 0.95);
+              .scale((asteroid.v.len() + this.v.len()) * 0.5);
             asteroid.v = asteroid.p
               .copy()
               .sub(this.p)
               .normalize()
-              .scale(this.v.len() * 0.75);
+              .scale((asteroid.v.len() + this.v.len()) * 0.45);
             asteroid.p.add(
               asteroid.v
                 .copy()
@@ -418,7 +403,7 @@ function drawShip(
   ctx.restore();
 }
 
-function drawShield(ctx, x, y, angle, r) {
+export function drawShield(ctx, x, y, angle, r) {
   let gradient = ctx.createRadialGradient(0, 0, r / 8, 0, 0, r * 2);
   gradient.addColorStop(0, "rgba(128, 255, 128, 0.75)");
   gradient.addColorStop(1, "rgba(100, 255, 100, 0.1)");

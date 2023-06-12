@@ -6,7 +6,11 @@ let canvas;
 
 let _Game;
 function gameLoop(dt) {
-  _Game.gameLoop(dt, gameState);
+  try {
+    _Game.gameLoop(dt, gameState);
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 function loadGame(cb) {

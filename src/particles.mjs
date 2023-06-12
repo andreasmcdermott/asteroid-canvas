@@ -15,6 +15,7 @@ export class Particle extends Entity {
     this.t = 0;
   }
   activate(
+    gameState,
     x,
     y,
     v0x,
@@ -38,7 +39,7 @@ export class Particle extends Entity {
     style,
     lineWidth
   ) {
-    super.activate(x, y);
+    super.activate(gameState, x, y);
     this.v0.set(v0x, v0y).normalize().scale(v0v);
     this.v1.set(v1x, v1y).normalize().scale(v1v);
     this.c0.set(c0r, c0g, c0b, c0a);
@@ -112,6 +113,7 @@ export function particle(
 ) {
   for (let i = 0; i < count; ++i) {
     gameState.particles.push(
+      gameState,
       val(x),
       val(y),
       val(v0x),

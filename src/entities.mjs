@@ -14,7 +14,7 @@ export class Entity {
     }
     return this;
   }
-  activate(x, y) {
+  activate(gameState, x, y) {
     this.active = true;
     this.p.set(x, y);
   }
@@ -61,8 +61,8 @@ export class EntityList {
     this.index = 0;
   }
 
-  push(...args) {
-    this.list[this.index++].activate(...args);
+  push(gameState, ...args) {
+    this.list[this.index++].activate(gameState, ...args);
     if (this.index >= this.list.length) this.index = 0;
   }
 

@@ -1,3 +1,4 @@
+import { asteroid_levels } from "./constants.mjs";
 import { Entity } from "./entities.mjs";
 import { particle } from "./particles.mjs";
 import {
@@ -8,13 +9,6 @@ import {
   line_intersect_circle,
 } from "./utils.mjs";
 
-let asteroid_levels = 3;
-let asteroid_sizes = [
-  [72, 112],
-  [48, 64],
-  [16, 32],
-];
-let asteroid_speed = [0.01, 0.175];
 let asteroid_rot_speed = [0.05, 0.15];
 let asteroid_start_dir = [-1, 1];
 
@@ -28,20 +22,22 @@ export class Asteroid extends Entity {
     this.v = new Vec2();
   }
 
-  activate(x, y, level) {
-    super.activate(x, y);
+  activate(gameState, x, y, level) {
+    super.activate(gameState, x, y);
+    let settings = gameState.settings;
     this.level = level;
-    this.radius = rnd(...asteroid_sizes[level]) * 0.5;
+    this.radius = rnd(...settings.asteroid_sizes[level]) * 0.5;
     this.angle = rnd(360);
     this.rot = rnd(-1, 1) * rnd(...asteroid_rot_speed);
     this.v
       .set(rnd(-1, 1), rnd(-1, 1))
       .normalize()
-      .scale(rnd(...asteroid_speed));
+      .scale(rnd(...settings.asteroid_speed));
   }
 
   _destroy(gameState) {
     this.deactivate();
+    gameState.screen_shake = 100;
     particle(gameState, 20 * (asteroid_levels - this.level), {
       x: this.p.x,
       y: this.p.y,
@@ -117,6 +113,7 @@ export class Asteroid extends Entity {
     else if (this.p.y + this.radius < 0) this.p.y += gameState.win.h;
 
     // Collisions with projectiles:
+    // TODO: Handle collision when wrapping around
     for (let projectile of gameState.projectiles) {
       if (
         line_intersect_circle(
@@ -128,9 +125,16 @@ export class Asteroid extends Entity {
       ) {
         projectile.deactivate();
         this._destroy(gameState);
+
         if (this.level + 1 < asteroid_levels) {
-          for (let i = 0; i < 4; ++i) {
-            gameState.asteroids.push(this.p.x, this.p.y, this.level + 1);
+          let settings = gameState.settings;
+          for (let i = 0; i < settings.new_asteroids[this.level + 1]; ++i) {
+            gameState.asteroids.push(
+              gameState,
+              this.p.x,
+              this.p.y,
+              this.level + 1
+            );
           }
         }
       }

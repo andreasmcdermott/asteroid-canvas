@@ -1,4 +1,4 @@
-import { Rgba, PI2 } from "./utils.mjs";
+import { Rgba, PI2, clampMin, rnd } from "./utils.mjs";
 import { Entity } from "./entities.mjs";
 
 export class Star extends Entity {
@@ -8,11 +8,11 @@ export class Star extends Entity {
     super();
     this.r = 0;
   }
-  activate(x, y, r) {
-    super.activate(x, y);
+  activate(gameState, x, y, r) {
+    super.activate(gameState, x, y);
     this.r = r;
   }
-  draw(ctx) {
+  draw(ctx, gameState) {
     ctx.beginPath();
     ctx.fillStyle = Star.color;
     ctx.ellipse(this.p.x, this.p.y, this.r, this.r, 0, 0, PI2);

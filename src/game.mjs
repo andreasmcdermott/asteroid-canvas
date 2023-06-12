@@ -3,8 +3,9 @@ import { Particle } from "./particles.mjs";
 import { Star } from "./stars.mjs";
 import { EntityList } from "./entities.mjs";
 import { Asteroid } from "./asteroids.mjs";
-import { Player } from "./players.mjs";
-import { Projectile } from "./projectiles.mjs";
+import { Player, drawShield } from "./players.mjs";
+import { Projectile, drawLaser } from "./projectiles.mjs";
+import { available_upgrades, getSettings } from "./constants.mjs";
 
 export function refresh(gameState) {
   gameState.player = new Player().copyFrom(gameState.player);
@@ -25,14 +26,20 @@ export function initGame(w, h, ctx) {
     input: {},
     lastInput: {},
     player: new Player(),
-    projectiles: new EntityList(200, Projectile),
+    projectiles: new EntityList(100, Projectile),
     asteroids: new EntityList(100, Asteroid),
     stars: new EntityList(100, Star),
     particles: new EntityList(500, Particle),
     screen: "menu",
     level: -1,
     difficulty: "easy",
-    powerups: {},
+    upgrade_active: 0,
+    screen_shake: 0,
+    powerups: {
+      shield_charge: 0,
+      fire_rate: 0,
+      laser_speed: 0,
+    },
   };
   initMenu(gameState);
   initStars(gameState);
@@ -42,7 +49,12 @@ export function initGame(w, h, ctx) {
 function initStars(gameState) {
   let num_stars = rnd(gameState.stars.size / 2, gameState.stars.size);
   for (let i = 0; i < num_stars; ++i) {
-    gameState.stars.push(rnd(gameState.win.w), rnd(gameState.win.h), rnd(1, 3));
+    gameState.stars.push(
+      gameState,
+      rnd(gameState.win.w),
+      rnd(gameState.win.h),
+      rnd(1, 3)
+    );
   }
 }
 
@@ -50,9 +62,10 @@ function initMenu(gameState) {
   gameState.menu_items = ["Easy", "Medium", "Hard", "Help"];
   gameState.menu_active = 0;
   gameState.menu_screen = "";
-
+  gameState.settings = getSettings("easy", 0);
   for (let i = 0; i < 6; ++i) {
     gameState.asteroids.push(
+      gameState,
       rnd(gameState.win.w),
       rnd(gameState.win.h),
       i < 3 ? 0 : i < 5 ? 1 : 2
@@ -60,7 +73,7 @@ function initMenu(gameState) {
   }
 }
 
-let screens = { play, menu, pause, gameOver, gameWin };
+let screens = { play, menu, pause, gameOver, gameWin, upgrade };
 
 export function gameLoop(dt, gameState) {
   let { ctx, win } = gameState;
@@ -68,6 +81,7 @@ export function gameLoop(dt, gameState) {
 
   ctx.clearRect(0, 0, win.w, win.h);
 
+  gameState.screen_shake = clampMin(gameState.screen_shake - dt);
   gameState.stars.drawAll(ctx, gameState);
 
   screen(dt, gameState);
@@ -76,6 +90,158 @@ export function gameLoop(dt, gameState) {
     ctx.fillStyle = "white";
     ctx.textAlign = "right";
     ctx.fillText((1000 / dt).toFixed(2), win.w - 10, 10);
+  }
+}
+
+function upgrade(dt, gameState) {
+  let { ctx, win, input, lastInput } = gameState;
+
+  let actions = {
+    Prev:
+      (input.ArrowLeft && !lastInput.ArrowLeft) || (input.a && !lastInput.a),
+    Next:
+      (input.ArrowRight && !lastInput.ArrowRight) || (input.d && !lastInput.d),
+    Select:
+      (input.Enter && !lastInput.Enter) || (input.Mouse0 && !lastInput.Mouse0),
+  };
+
+  if (gameState.mouse_active) {
+  }
+
+  if (actions.Prev) {
+    gameState.upgrade_active = clampMin(gameState.upgrade_active - 1);
+  } else if (actions.Next) {
+    gameState.upgrade_active = clampMax(
+      gameState.upgrade_active + 1,
+      available_upgrades.length - 1
+    );
+  } else if (actions.Select) {
+    // TODO: Add upgrade
+    gotoNextLevel(gameState);
+    gameState.screen = "play";
+  }
+
+  // TODO: handle maxed out
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+  ctx.fillRect(0, 0, win.w, win.h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "white";
+  ctx.font = "80px monospace";
+  ctx.fillText("Asteroids", win.w / 2, win.h / 3);
+  ctx.font = "22px monospace";
+  ctx.fillText(
+    `Level ${gameState.level + 1} Completed!`,
+    win.w / 2,
+    win.h / 2 - 80
+  );
+
+  ctx.font = "18px monospace";
+  ctx.fillText(`Pick your Upgrade:`, win.w / 2, win.h / 2 - 20);
+
+  let boxSize = win.w / 6;
+  let boxTop = win.h / 2 + 50;
+
+  for (let i = 0; i < available_upgrades.length; ++i) {
+    let isActive = gameState.upgrade_active === i;
+    let boxLeft = win.w / 2 - (win.w / 6 + 20) * 1.5 + (win.w / 6 + 20) * i;
+
+    ctx.strokeStyle = isActive ? "skyblue" : "white";
+    ctx.fillStyle = `rgba(255, 255, 255, ${isActive ? 0.33 : 0.1})`;
+    ctx.beginPath();
+    ctx.roundRect(boxLeft, boxTop, boxSize, boxSize, boxSize / 5);
+    ctx.stroke();
+    ctx.fill();
+    ctx.fillStyle = "white";
+    ctx.fillText(
+      available_upgrades[i].name,
+      boxLeft + boxSize / 2,
+      boxTop + boxSize / 4
+    );
+    switch (available_upgrades[i].type) {
+      case "fire_rate":
+        drawLaser(
+          ctx,
+          boxLeft + boxSize / 2 - 40,
+          boxTop + boxSize / 2 + 60,
+          20,
+          -20,
+          4
+        );
+        drawLaser(
+          ctx,
+          boxLeft + boxSize / 2 - 10,
+          boxTop + boxSize / 2 + 30,
+          20,
+          -20,
+          4
+        );
+        drawLaser(
+          ctx,
+          boxLeft + boxSize / 2 + 20,
+          boxTop + boxSize / 2,
+          20,
+          -20,
+          4
+        );
+        break;
+      case "laser_speed":
+        drawLaser(
+          ctx,
+          boxLeft + boxSize / 2 - 30,
+          boxTop + boxSize / 2 + 30,
+          50,
+          -50,
+          4
+        );
+        drawLaser(
+          ctx,
+          boxLeft + boxSize / 2 - 45,
+          boxTop + boxSize / 2 + 35,
+          30,
+          -30,
+          1
+        );
+        drawLaser(
+          ctx,
+          boxLeft + boxSize / 2 - 30,
+          boxTop + boxSize / 2 + 40,
+          35,
+          -35,
+          1
+        );
+        drawLaser(
+          ctx,
+          boxLeft + boxSize / 2 - 50,
+          boxTop + boxSize / 2 + 50,
+          10,
+          -10,
+          1
+        );
+        break;
+      case "shield_charge":
+        drawShield(
+          ctx,
+          boxLeft + boxSize / 2,
+          boxTop + boxSize / 2 + 25,
+          0,
+          50
+        );
+        break;
+    }
+
+    if (gameState.mouse_active) {
+      let { MouseX, MouseY } = gameState.input;
+      if (
+        MouseX >= boxLeft &&
+        MouseX <= boxLeft + boxSize &&
+        MouseY >= boxTop &&
+        MouseY <= boxTop + boxSize
+      ) {
+        gameState.upgrade_active = i;
+      }
+    }
   }
 }
 
@@ -112,7 +278,8 @@ function menu(dt, gameState) {
   let actions = {
     Select:
       (gameState.input["Enter"] && !gameState.lastInput["Enter"]) ||
-      (gameState.input[" "] && !gameState.lastInput[" "]),
+      (gameState.input[" "] && !gameState.lastInput[" "]) ||
+      (gameState.input.Mouse0 && !gameState.lastInput.Mouse0),
     Up:
       (gameState.input["ArrowUp"] && !gameState.lastInput["ArrowUp"]) ||
       (gameState.input.w && !gameState.lastInput.w),
@@ -181,18 +348,37 @@ function menu(dt, gameState) {
   } else {
     ctx.font = "22px monospace";
     for (let i = 0; i < gameState.menu_items.length; ++i) {
-      ctx.fillText(gameState.menu_items[i], win.w / 2, win.h / 2 + 60 * i);
+      let size = ctx.measureText(gameState.menu_items[i]);
+      let left = win.w / 2 - size.actualBoundingBoxLeft - 30;
+      let top = win.h / 2 + 60 * i - 20;
+      let width = size.width + 60;
+      let height = 40;
+      let right = left + width;
+      let bottom = top + height;
 
       if (i === gameState.menu_active) {
-        let size = ctx.measureText(gameState.menu_items[i]);
-        ctx.strokeStyle = "white";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.33)";
+        ctx.strokeStyle = "skyblue";
         ctx.lineWidth = 2;
-        ctx.strokeRect(
-          win.w / 2 - size.actualBoundingBoxLeft - 20,
-          win.h / 2 + 60 * i - 20,
-          size.width + 40,
-          40
-        );
+        ctx.beginPath();
+        ctx.roundRect(left, top, width, height, height / 5);
+        ctx.stroke();
+        ctx.fill();
+      }
+
+      ctx.fillStyle = "white";
+      ctx.fillText(gameState.menu_items[i], win.w / 2, win.h / 2 + 60 * i);
+
+      if (gameState.mouse_active) {
+        let { MouseX, MouseY } = gameState.input;
+        if (
+          MouseX >= left &&
+          MouseX <= right &&
+          MouseY >= top &&
+          MouseY <= bottom
+        ) {
+          gameState.menu_active = i;
+        }
       }
     }
   }
@@ -205,9 +391,13 @@ function gameOver(dt, gameState) {
   gameState.asteroids.updateAll(dt, gameState);
   gameState.particles.updateAll(dt, gameState);
 
+  let has_screen_shake = add_screen_shake(ctx, gameState);
+
   gameState.projectiles.drawAll(ctx, gameState);
   gameState.asteroids.drawAll(ctx, gameState);
   gameState.particles.drawAll(ctx, gameState);
+
+  if (has_screen_shake) clear_screen_shake(ctx);
 
   ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
   ctx.fillRect(0, 0, win.w, win.h);
@@ -242,6 +432,22 @@ function gameWin(dt, gameState) {
   }
 }
 
+function add_screen_shake(ctx, gameState) {
+  if (gameState.screen_shake > 0) {
+    let strength = gameState.screen_shake / 10;
+    let ox = rnd(-strength, strength);
+    let oy = rnd(-strength, strength);
+    ctx.save();
+    ctx.translate(ox, oy);
+    return true;
+  }
+  return false;
+}
+
+function clear_screen_shake(ctx) {
+  ctx.restore();
+}
+
 function play(dt, gameState) {
   let { ctx } = gameState;
 
@@ -264,13 +470,17 @@ function play(dt, gameState) {
   gameState.player.update(dt, gameState);
   gameState.particles.updateAll(dt, gameState);
 
+  let has_screen_shake = add_screen_shake(ctx, gameState);
+
   gameState.projectiles.drawAll(ctx, gameState);
   gameState.asteroids.drawAll(ctx, gameState);
   gameState.player.draw(ctx, gameState);
   gameState.particles.drawAll(ctx, gameState);
 
+  if (has_screen_shake) clear_screen_shake(ctx);
+
   if (gameState.asteroids.activeCount === 0) {
-    gameState.screen = "gameWin";
+    gameState.screen = "upgrade";
   }
 }
 
@@ -280,19 +490,21 @@ function gotoNextLevel(gameState) {
   gameState.particles.reset();
   gameState.projectiles.reset();
   gameState.asteroids.reset();
-  gameState.player.activate(gameState.win.w / 2, gameState.win.h / 2);
+  gameState.player.activate(
+    gameState,
+    gameState.win.w / 2,
+    gameState.win.h / 2
+  );
 
-  switch (gameState.level) {
-    case 0: {
-      let level = 0;
-      for (let i = 0; i < 3; ++i) {
-        gameState.asteroids.push(
-          rnd(gameState.win.w),
-          rnd(gameState.win.h),
-          level
-        );
-      }
-      break;
-    }
+  let settings = getSettings(gameState.difficulty, gameState.level);
+  gameState.settings = settings;
+
+  for (let i = 0; i < settings.asteroids.length; ++i) {
+    gameState.asteroids.push(
+      gameState,
+      rnd(gameState.win.w),
+      rnd(gameState.win.h),
+      settings.asteroids[i]
+    );
   }
 }
