@@ -5,6 +5,15 @@ export class Entity {
     this.p = new Vec2();
     this.active = false;
   }
+  copyFrom(e) {
+    let keys = Object.keys(e);
+    for (let i = 0; i < keys.length; ++i) {
+      let key = keys[i];
+      if (!e[key] || typeof e[key] !== "object") this[key] = e[key];
+      else this[key].copyFrom(e[key]);
+    }
+    return this;
+  }
   activate(x, y) {
     this.active = true;
     this.p.set(x, y);
@@ -17,6 +26,16 @@ export class Entity {
 }
 
 export class EntityList {
+  static copyFrom(e, Clazz) {
+    let newList = new EntityList(e.size, Clazz);
+    newList.activeCount = 0;
+    for (let i = 0; i < newList.size; ++i) {
+      newList.list[i].copyFrom(e.list[i]);
+      if (newList.list[i].active) newList.activeCount++;
+    }
+    newList.index = e.index;
+    return newList;
+  }
   constructor(size, Clazz) {
     this.list = Array.from({ length: size }, () => new Clazz());
     this.index = 0;

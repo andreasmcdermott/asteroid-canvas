@@ -31,6 +31,12 @@ export class Rgba {
     this.b = b;
     this.a = a;
   }
+  copyFrom(rgba) {
+    this.r = rgba.r;
+    this.g = rgba.g;
+    this.b = rgba.b;
+    this.a = rgba.a;
+  }
   copy() {
     return new Rgba(this.r, this.g, this.b, this.a);
   }
@@ -68,6 +74,10 @@ export class Vec2 {
   constructor(x = 0, y = 0) {
     this.x = x;
     this.y = y;
+  }
+  copyFrom(v) {
+    this.x = v.x;
+    this.y = v.y;
   }
   get w() {
     return this.x;

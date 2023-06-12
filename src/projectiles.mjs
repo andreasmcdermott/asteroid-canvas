@@ -1,10 +1,10 @@
 import { Entity } from "./entities.mjs";
 import { Vec2, point_inside } from "./utils.mjs";
 
-let laser_speed = 0.85;
-let laser_len = 32;
-
 export class Projectile extends Entity {
+  static laser_speed = 0.85;
+  static laser_len = 32;
+
   constructor() {
     super();
     this.angle = 0;
@@ -17,8 +17,8 @@ export class Projectile extends Entity {
     super.activate(x, y);
     this.angle = angle;
     this.v = Vec2.fromAngle(angle);
-    this.len = laser_len;
-    this.speed = laser_speed;
+    this.len = Projectile.laser_len;
+    this.speed = Projectile.laser_speed;
   }
 
   draw(ctx, gameState) {

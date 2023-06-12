@@ -1,37 +1,74 @@
-import {
-  Vec2,
-  Rgba,
-  RAD2DEG,
-  PI,
-  PI2,
-  point_inside,
-  wrapDeg,
-  rnd,
-  clampMin,
-  clampMax,
-  line_intersect_circle,
-  distance,
-} from "./utils.mjs";
-import { particle } from "./particles.mjs";
+import { Vec2, rnd, clampMin, clampMax } from "./utils.mjs";
+import { Particle } from "./particles.mjs";
+import { Star } from "./stars.mjs";
+import { EntityList } from "./entities.mjs";
+import { Asteroid } from "./asteroids.mjs";
+import { Player } from "./players.mjs";
+import { Projectile } from "./projectiles.mjs";
 
-let ctx;
-let win;
+export function refresh(gameState) {
+  gameState.player = new Player().copyFrom(gameState.player);
+  gameState.projectiles = EntityList.copyFrom(
+    gameState.projectiles,
+    Projectile
+  );
+  gameState.asteroids = EntityList.copyFrom(gameState.asteroids, Asteroid);
+  gameState.stars = EntityList.copyFrom(gameState.stars, Star);
+  gameState.particles = EntityList.copyFrom(gameState.particles, Particle);
+}
+
+export function initGame(w, h, ctx) {
+  let gameState = {
+    ctx,
+    mouse_active: false,
+    win: new Vec2(w, h),
+    input: {},
+    lastInput: {},
+    player: new Player(),
+    projectiles: new EntityList(200, Projectile),
+    asteroids: new EntityList(100, Asteroid),
+    stars: new EntityList(100, Star),
+    particles: new EntityList(500, Particle),
+    screen: "menu",
+    level: -1,
+    difficulty: "easy",
+    powerups: {},
+  };
+  initMenu(gameState);
+  initStars(gameState);
+  return gameState;
+}
+
+function initStars(gameState) {
+  let num_stars = rnd(gameState.stars.size / 2, gameState.stars.size);
+  for (let i = 0; i < num_stars; ++i) {
+    gameState.stars.push(rnd(gameState.win.w), rnd(gameState.win.h), rnd(1, 3));
+  }
+}
+
+function initMenu(gameState) {
+  gameState.menu_items = ["Easy", "Medium", "Hard", "Help"];
+  gameState.menu_active = 0;
+  gameState.menu_screen = "";
+
+  for (let i = 0; i < 6; ++i) {
+    gameState.asteroids.push(
+      rnd(gameState.win.w),
+      rnd(gameState.win.h),
+      i < 3 ? 0 : i < 5 ? 1 : 2
+    );
+  }
+}
 
 let screens = { play, menu, pause, gameOver, gameWin };
 
 export function gameLoop(dt, gameState) {
-  win = gameState.win;
-  ctx = gameState.ctx;
-
+  let { ctx, win } = gameState;
   let screen = screens[gameState.screen];
 
   ctx.clearRect(0, 0, win.w, win.h);
 
   gameState.stars.drawAll(ctx, gameState);
-
-  if (gameState.screen === "pause") {
-    play(0, gameState);
-  }
 
   screen(dt, gameState);
 
@@ -43,10 +80,17 @@ export function gameLoop(dt, gameState) {
 }
 
 function pause(dt, gameState) {
+  let { ctx, win } = gameState;
+
   if (gameState.input.Escape && !gameState.lastInput.Escape) {
     gameState.screen = "play";
     return;
   }
+
+  gameState.projectiles.drawAll(ctx, gameState);
+  gameState.asteroids.drawAll(ctx, gameState);
+  gameState.player.draw(ctx, gameState);
+  gameState.particles.drawAll(ctx, gameState);
 
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
   ctx.fillRect(0, 0, win.w, win.h);
@@ -60,6 +104,8 @@ function pause(dt, gameState) {
 }
 
 function menu(dt, gameState) {
+  let { ctx, win } = gameState;
+
   gameState.asteroids.updateAll(dt, gameState);
   gameState.asteroids.drawAll(ctx, gameState);
 
@@ -197,6 +243,8 @@ function gameWin(dt, gameState) {
 }
 
 function play(dt, gameState) {
+  let { ctx } = gameState;
+
   if (
     gameState.input.Escape &&
     !gameState.lastInput.Escape &&

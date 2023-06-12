@@ -114,7 +114,7 @@ export class Player extends Entity {
 
   _drawGui(ctx) {
     ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgb(25, 255, 25)";
+    ctx.strokeStyle = "rgb(255, 255, 25)";
     ctx.fillStyle =
       this.shield_charge <= 0
         ? `rgba(255, 25, 25, ${

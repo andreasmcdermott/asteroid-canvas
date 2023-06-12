@@ -2,6 +2,7 @@ let lt;
 let ctx;
 let w, h;
 let gameState;
+let canvas;
 
 let _Game;
 function gameLoop(dt) {
@@ -9,13 +10,15 @@ function gameLoop(dt) {
 }
 
 function loadGame(cb) {
-  import(`./game.mjs?t=${Date.now()}`).then((module) => {
+  import(`http://localhost:8000/game.mjs?t=${Date.now()}`).then((module) => {
     _Game = module;
     if (cb) cb();
+    else _Game.refresh(gameState);
   });
 }
 
-export function init(canvas) {
+export function init(_canvas) {
+  canvas = _canvas;
   w = window.innerWidth;
   h = window.innerHeight;
   canvas.setAttribute("width", w);
@@ -39,6 +42,13 @@ function nextFrame(t) {
 1;
 
 function initEventListeners() {
+  new EventSource("http://localhost:8000/esbuild").addEventListener(
+    "change",
+    () => {
+      loadGame();
+    }
+  );
+
   window.addEventListener(
     "resize",
     () => {
@@ -63,8 +73,6 @@ function initEventListeners() {
     "keyup",
     (e) => {
       delete gameState.input[e.key];
-
-      if (e.key === "-") loadGame();
       if (e.key === "Backspace") gameState.debug = !gameState.debug;
     },
     { passive: true }
@@ -97,7 +105,7 @@ function initEventListeners() {
   );
 
   window.addEventListener("blur", (e) => {
-    gameState.screen = "pause";
+    if (gameState.screen === "play") gameState.screen = "pause";
   });
 
   window.addEventListener("contextmenu", (e) => {
