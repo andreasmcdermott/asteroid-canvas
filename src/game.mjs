@@ -25,13 +25,14 @@ export function refresh(gameState) {
 export function initGame(w, h, ctx) {
   let gameState = {
     ctx,
+    debug: true, // TODO: Should be false
     mouse_active: false,
     win: new Vec2(w, h),
     input: {},
     lastInput: {},
     player: new Player(),
     projectiles: new EntityList(100, Projectile),
-    asteroids: new EntityList(500, Asteroid),
+    asteroids: new EntityList(100, Asteroid),
     stars: new EntityList(100, Star),
     particles: new EntityList(500, Particle),
     screen: "menu",
@@ -97,7 +98,23 @@ export function gameLoop(dt, gameState) {
   if (gameState.debug) {
     ctx.fillStyle = "white";
     ctx.textAlign = "right";
+    ctx.font = "14px monospace";
     ctx.fillText(`FPS: ${(1000 / dt).toFixed(2)}`, win.w - 10, win.h - 10);
+    ctx.fillText(
+      `Asteroids: ${gameState.asteroids.activeCount}`,
+      win.w - 10,
+      win.h - 25
+    );
+    ctx.fillText(
+      `Particles: ${gameState.particles.activeCount}`,
+      win.w - 10,
+      win.h - 40
+    );
+    ctx.fillText(
+      `Projectiles: ${gameState.projectiles.activeCount}`,
+      win.w - 10,
+      win.h - 55
+    );
   }
 }
 
@@ -581,6 +598,30 @@ function play(dt, gameState) {
   if (gameState.level < 0) {
     gotoNextLevel(gameState);
   }
+
+  // Dev code for adding more astroid
+
+  if (gameState.input["1"] && !gameState.lastInput["1"])
+    gameState.asteroids.push(
+      gameState,
+      rnd(gameState.win.w),
+      rnd(gameState.win.h),
+      0
+    );
+  else if (gameState.input["2"] && !gameState.lastInput["2"])
+    gameState.asteroids.push(
+      gameState,
+      rnd(gameState.win.w),
+      rnd(gameState.win.h),
+      1
+    );
+  else if (gameState.input["3"] && !gameState.lastInput["3"])
+    gameState.asteroids.push(
+      gameState,
+      rnd(gameState.win.w),
+      rnd(gameState.win.h),
+      2
+    );
 
   gameState.projectiles.updateAll(dt, gameState);
   gameState.asteroids.updateAll(dt, gameState);
