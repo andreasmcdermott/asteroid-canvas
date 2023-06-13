@@ -33,13 +33,15 @@ export function initGame(w, h, ctx) {
     screen: "menu",
     level: -1,
     difficulty: "easy",
-    upgrade_active: 0,
+    upgrade_keyboard_active: 0,
+    upgrade_mouse_active: -1,
     screen_shake: 0,
     powerups: {
       shield_charge: 0,
       fire_rate: 0,
       laser_speed: 0,
     },
+    points: 0,
   };
   initMenu(gameState);
   initStars(gameState);
@@ -60,7 +62,8 @@ function initStars(gameState) {
 
 function initMenu(gameState) {
   gameState.menu_items = ["Easy", "Medium", "Hard", "Help"];
-  gameState.menu_active = 0;
+  gameState.menu_keyboard_active = 0;
+  gameState.menu_mouse_over = -1;
   gameState.menu_screen = "";
   gameState.settings = getSettings("easy", 0);
   for (let i = 0; i < 6; ++i) {
@@ -101,21 +104,33 @@ function upgrade(dt, gameState) {
       (input.ArrowLeft && !lastInput.ArrowLeft) || (input.a && !lastInput.a),
     Next:
       (input.ArrowRight && !lastInput.ArrowRight) || (input.d && !lastInput.d),
-    Select:
-      (input.Enter && !lastInput.Enter) || (input.Mouse0 && !lastInput.Mouse0),
+    SelectKeyboard:
+      (input.Enter && !lastInput.Enter) ||
+      (gameState.input[" "] && !gameState.lastInput[" "]),
+    SelectMouse: input.Mouse0 && !lastInput.Mouse0,
   };
 
-  if (gameState.mouse_active) {
-  }
-
   if (actions.Prev) {
-    gameState.upgrade_active = clampMin(gameState.upgrade_active - 1);
+    if (gameState.mouse_active && gameState.upgrade_mouse_active >= 0)
+      gameState.upgrade_keyboard_active = gameState.upgrade_mouse_active;
+
+    gameState.mouse_active = false;
+    gameState.upgrade_keyboard_active = clampMin(
+      gameState.upgrade_keyboard_active - 1
+    );
   } else if (actions.Next) {
-    gameState.upgrade_active = clampMax(
-      gameState.upgrade_active + 1,
+    if (gameState.mouse_active && gameState.upgrade_mouse_active >= 0)
+      gameState.upgrade_keyboard_active = gameState.upgrade_mouse_active;
+
+    gameState.mouse_active = false;
+    gameState.upgrade_keyboard_active = clampMax(
+      gameState.upgrade_keyboard_active + 1,
       available_upgrades.length - 1
     );
-  } else if (actions.Select) {
+  } else if (
+    actions.SelectKeyboard ||
+    (actions.SelectMouse && gameState.upgrade_mouse_active >= 0)
+  ) {
     // TODO: Add upgrade
     gotoNextLevel(gameState);
     gameState.screen = "play";
@@ -143,9 +158,25 @@ function upgrade(dt, gameState) {
   let boxSize = win.w / 6;
   let boxTop = win.h / 2 + 50;
 
+  gameState.upgrade_mouse_active = -1;
   for (let i = 0; i < available_upgrades.length; ++i) {
-    let isActive = gameState.upgrade_active === i;
     let boxLeft = win.w / 2 - (win.w / 6 + 20) * 1.5 + (win.w / 6 + 20) * i;
+
+    if (gameState.mouse_active) {
+      let { MouseX, MouseY } = gameState.input;
+      if (
+        MouseX >= boxLeft &&
+        MouseX <= boxLeft + boxSize &&
+        MouseY >= boxTop &&
+        MouseY <= boxTop + boxSize
+      ) {
+        gameState.upgrade_mouse_active = i;
+      }
+    }
+
+    let isActive = gameState.mouse_active
+      ? gameState.upgrade_mouse_active === i
+      : gameState.upgrade_keyboard_active === i;
 
     ctx.strokeStyle = isActive ? "skyblue" : "white";
     ctx.fillStyle = `rgba(255, 255, 255, ${isActive ? 0.33 : 0.1})`;
@@ -230,18 +261,6 @@ function upgrade(dt, gameState) {
         );
         break;
     }
-
-    if (gameState.mouse_active) {
-      let { MouseX, MouseY } = gameState.input;
-      if (
-        MouseX >= boxLeft &&
-        MouseX <= boxLeft + boxSize &&
-        MouseY >= boxTop &&
-        MouseY <= boxTop + boxSize
-      ) {
-        gameState.upgrade_active = i;
-      }
-    }
   }
 }
 
@@ -276,10 +295,10 @@ function menu(dt, gameState) {
   gameState.asteroids.drawAll(ctx, gameState);
 
   let actions = {
-    Select:
+    SelectKeyboard:
       (gameState.input["Enter"] && !gameState.lastInput["Enter"]) ||
-      (gameState.input[" "] && !gameState.lastInput[" "]) ||
-      (gameState.input.Mouse0 && !gameState.lastInput.Mouse0),
+      (gameState.input[" "] && !gameState.lastInput[" "]),
+    SelectMouse: gameState.input.Mouse0 && !gameState.lastInput.Mouse0,
     Up:
       (gameState.input["ArrowUp"] && !gameState.lastInput["ArrowUp"]) ||
       (gameState.input.w && !gameState.lastInput.w),
@@ -289,23 +308,39 @@ function menu(dt, gameState) {
   };
 
   if (actions.Up) {
-    gameState.menu_active = clampMin(gameState.menu_active - 1, 0);
+    if (gameState.mouse_active && gameState.menu_mouse_active >= 0)
+      gameState.menu_keyboard_active = gameState.menu_mouse_active;
+
+    gameState.mouse_active = false;
+    gameState.menu_keyboard_active = clampMin(
+      gameState.menu_keyboard_active - 1,
+      0
+    );
   } else if (actions.Down) {
-    gameState.menu_active = clampMax(
-      gameState.menu_active + 1,
+    if (gameState.mouse_active && gameState.menu_mouse_active >= 0)
+      gameState.menu_keyboard_active = gameState.menu_mouse_active;
+
+    gameState.mouse_active = false;
+    gameState.menu_keyboard_active = clampMax(
+      gameState.menu_keyboard_active + 1,
       gameState.menu_items.length - 1
     );
-  } else if (actions.Select) {
+  } else if (
+    actions.SelectKeyboard ||
+    (actions.SelectMouse && gameState.menu_mouse_active >= 0)
+  ) {
     if (gameState.menu_screen === "help") {
       gameState.menu_screen = "";
     } else {
-      if (gameState.menu_items[gameState.menu_active] === "Help") {
+      let active = actions.SelectKeyboard
+        ? gameState.menu_keyboard_active
+        : gameState.menu_mouse_active;
+      if (gameState.menu_items[active] === "Help") {
         gameState.menu_screen = "help";
       } else {
         gameState.screen = "play";
         gameState.level = -1;
-        gameState.difficulty =
-          gameState.menu_items[gameState.menu_active].toLowerCase();
+        gameState.difficulty = gameState.menu_items[active].toLowerCase();
       }
     }
   }
@@ -347,6 +382,7 @@ function menu(dt, gameState) {
     );
   } else {
     ctx.font = "22px monospace";
+    gameState.menu_mouse_active = -1;
     for (let i = 0; i < gameState.menu_items.length; ++i) {
       let size = ctx.measureText(gameState.menu_items[i]);
       let left = win.w / 2 - size.actualBoundingBoxLeft - 30;
@@ -356,7 +392,23 @@ function menu(dt, gameState) {
       let right = left + width;
       let bottom = top + height;
 
-      if (i === gameState.menu_active) {
+      if (gameState.mouse_active) {
+        let { MouseX, MouseY } = gameState.input;
+        if (
+          MouseX >= left &&
+          MouseX <= right &&
+          MouseY >= top &&
+          MouseY <= bottom
+        ) {
+          gameState.menu_mouse_active = i;
+        }
+      }
+
+      if (
+        gameState.mouse_active
+          ? gameState.menu_mouse_active === i
+          : gameState.menu_keyboard_active === i
+      ) {
         ctx.fillStyle = "rgba(255, 255, 255, 0.33)";
         ctx.strokeStyle = "skyblue";
         ctx.lineWidth = 2;
@@ -368,18 +420,6 @@ function menu(dt, gameState) {
 
       ctx.fillStyle = "white";
       ctx.fillText(gameState.menu_items[i], win.w / 2, win.h / 2 + 60 * i);
-
-      if (gameState.mouse_active) {
-        let { MouseX, MouseY } = gameState.input;
-        if (
-          MouseX >= left &&
-          MouseX <= right &&
-          MouseY >= top &&
-          MouseY <= bottom
-        ) {
-          gameState.menu_active = i;
-        }
-      }
     }
   }
 }
@@ -479,22 +519,31 @@ function play(dt, gameState) {
 
   if (has_screen_shake) clear_screen_shake(ctx);
 
+  // TODO: Delay switch to upgrade by a second after finishing a level
+
   if (gameState.asteroids.activeCount === 0) {
     gameState.screen = "upgrade";
   }
 }
 
 function gotoNextLevel(gameState) {
+  let new_game = gameState.level < 0;
+
   gameState.level += 1;
 
   gameState.particles.reset();
   gameState.projectiles.reset();
   gameState.asteroids.reset();
-  gameState.player.activate(
-    gameState,
-    gameState.win.w / 2,
-    gameState.win.h / 2
-  );
+
+  if (new_game) {
+    gameState.player.activate(
+      gameState,
+      gameState.win.w / 2,
+      gameState.win.h / 2
+    );
+  } else {
+    gameState.player.resetForNewLevel(gameState);
+  }
 
   let settings = getSettings(gameState.difficulty, gameState.level);
   gameState.settings = settings;

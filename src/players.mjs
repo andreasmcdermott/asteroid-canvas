@@ -53,6 +53,10 @@ export class Player extends Entity {
     this.lives = 3;
   }
 
+  resetForNewLevel(gameState) {
+    this._restart(gameState);
+  }
+
   _restart(gameState) {
     this.destroyed = false;
     this.restart_timer = 0;
@@ -168,6 +172,11 @@ export class Player extends Entity {
         1
       );
     }
+
+    // TODO: Fix positioning
+
+    ctx.fillStyle = "white";
+    ctx.fillText(`${gameState.points}`, 500, 10);
   }
 
   _draw(ctx, x, y, strokeStyle) {

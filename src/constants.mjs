@@ -16,8 +16,8 @@ export let asteroid_sizes = [
 let levels_by_difficulty = {
   easy: {
     levels: [
-      { asteroids: [0, 0, 1], new_asteroids: { 1: 1, 2: 1 } }, //{ 1: 3, 2: 3 } },
-      { asteroids: [0, 0, 0], new_asteroids: { 1: 3, 2: 3 } },
+      { asteroids: [0, 0, 1], new_asteroids: { 1: 1, 2: 1 } },
+      { asteroids: [0, 0, 0], new_asteroids: { 1: 2, 2: 2 } },
       { asteroids: [0, 0, 0, 0], new_asteroids: { 1: 3, 2: 3 } },
       { asteroids: [0, 0, 0, 0, 0], new_asteroids: { 1: 3, 2: 3 } },
     ],

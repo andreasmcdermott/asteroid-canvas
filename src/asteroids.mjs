@@ -37,7 +37,8 @@ export class Asteroid extends Entity {
 
   _destroy(gameState) {
     this.deactivate();
-    gameState.screen_shake = 100;
+    gameState.points += 10 * (asteroid_levels - this.level);
+    gameState.screen_shake = 75 * (asteroid_levels - this.level);
     particle(gameState, 20 * (asteroid_levels - this.level), {
       x: this.p.x,
       y: this.p.y,

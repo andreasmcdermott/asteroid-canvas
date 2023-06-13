@@ -39,6 +39,7 @@ export function init(_canvas) {
 function nextFrame(t) {
   let dt = t - lt; // dt is ~16ms
   lt = t;
+  canvas.classList.toggle("mouse_active", gameState.mouse_active);
   gameLoop(dt);
   gameState.lastInput = { ...gameState.input };
   requestAnimationFrame(nextFrame);
