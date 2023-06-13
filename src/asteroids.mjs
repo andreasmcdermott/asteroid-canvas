@@ -6,6 +6,7 @@ import {
   rnd,
   wrapDeg,
   DEG2RAD,
+  clampMax,
   line_intersect_circle,
 } from "./utils.mjs";
 
@@ -38,7 +39,11 @@ export class Asteroid extends Entity {
   _destroy(gameState) {
     this.deactivate();
     gameState.points += 10 * (asteroid_levels - this.level);
-    gameState.screen_shake = 75 * (asteroid_levels - this.level);
+    if (Math.floor(gameState.points / 5000) > gameState.last_points_payed) {
+      gameState.last_points_payed += 1;
+      gameState.player.lives = clampMax(gameState.player.lives + 1, 5);
+    }
+    gameState.screen_shake = 50 * (asteroid_levels - this.level);
     particle(gameState, 20 * (asteroid_levels - this.level), {
       x: this.p.x,
       y: this.p.y,

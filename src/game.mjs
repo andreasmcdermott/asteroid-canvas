@@ -1,11 +1,15 @@
-import { Vec2, rnd, clampMin, clampMax } from "./utils.mjs";
+import { Vec2, rnd, clampMin, clampMax, PI2 } from "./utils.mjs";
 import { Particle } from "./particles.mjs";
 import { Star } from "./stars.mjs";
 import { EntityList } from "./entities.mjs";
 import { Asteroid } from "./asteroids.mjs";
 import { Player, drawShield } from "./players.mjs";
 import { Projectile, drawLaser } from "./projectiles.mjs";
-import { available_upgrades, getSettings } from "./constants.mjs";
+import {
+  available_upgrades,
+  getSettings,
+  max_upgrade_levels,
+} from "./constants.mjs";
 
 export function refresh(gameState) {
   gameState.player = new Player().copyFrom(gameState.player);
@@ -27,7 +31,7 @@ export function initGame(w, h, ctx) {
     lastInput: {},
     player: new Player(),
     projectiles: new EntityList(100, Projectile),
-    asteroids: new EntityList(100, Asteroid),
+    asteroids: new EntityList(500, Asteroid),
     stars: new EntityList(100, Star),
     particles: new EntityList(500, Particle),
     screen: "menu",
@@ -36,12 +40,13 @@ export function initGame(w, h, ctx) {
     upgrade_keyboard_active: 0,
     upgrade_mouse_active: -1,
     screen_shake: 0,
-    powerups: {
+    upgrades: {
       shield_charge: 0,
       fire_rate: 0,
       laser_speed: 0,
     },
     points: 0,
+    last_points_payed: 0,
   };
   initMenu(gameState);
   initStars(gameState);
@@ -92,12 +97,48 @@ export function gameLoop(dt, gameState) {
   if (gameState.debug) {
     ctx.fillStyle = "white";
     ctx.textAlign = "right";
-    ctx.fillText((1000 / dt).toFixed(2), win.w - 10, 10);
+    ctx.fillText(`FPS: ${(1000 / dt).toFixed(2)}`, win.w - 10, win.h - 10);
   }
 }
 
 function upgrade(dt, gameState) {
   let { ctx, win, input, lastInput } = gameState;
+
+  if (gameState.screen_transition > 0) {
+    gameState.particles.updateAll(dt, gameState);
+    gameState.projectiles.updateAll(dt, gameState);
+    gameState.player.update(dt, gameState);
+
+    gameState.particles.drawAll(ctx, gameState);
+    gameState.projectiles.drawAll(ctx, gameState);
+    gameState.player.draw(ctx, gameState);
+
+    gameState.screen_transition -= dt;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.fillRect(0, 0, win.w, win.h);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "white";
+    ctx.font = "80px monospace";
+    ctx.fillText("Asteroids", win.w / 2, win.h / 3);
+    ctx.font = "22px monospace";
+    ctx.fillText(
+      `Level ${gameState.level + 1} Completed!`,
+      win.w / 2,
+      win.h / 2 - 80
+    );
+    return;
+  } else {
+    if (
+      gameState.upgrades.shield_charge >= max_upgrade_levels &&
+      gameState.upgrades.fire_rate >= max_upgrade_levels &&
+      gameState.upgrades.laser_speed >= max_upgrade_levels
+    ) {
+      gotoNextLevel(gameState);
+      gameState.screen = "play";
+      return;
+    }
+  }
 
   let actions = {
     Prev:
@@ -131,12 +172,18 @@ function upgrade(dt, gameState) {
     actions.SelectKeyboard ||
     (actions.SelectMouse && gameState.upgrade_mouse_active >= 0)
   ) {
-    // TODO: Add upgrade
-    gotoNextLevel(gameState);
-    gameState.screen = "play";
+    let selected =
+      available_upgrades[
+        actions.SelectKeyboard
+          ? gameState.upgrade_keyboard_active
+          : gameState.upgrade_mouse_active
+      ];
+    if (gameState.upgrades[selected.type] < max_upgrade_levels) {
+      gameState.upgrades[selected.type] += 1;
+      gotoNextLevel(gameState);
+      gameState.screen = "play";
+    }
   }
-
-  // TODO: handle maxed out
 
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
   ctx.fillRect(0, 0, win.w, win.h);
@@ -160,6 +207,7 @@ function upgrade(dt, gameState) {
 
   gameState.upgrade_mouse_active = -1;
   for (let i = 0; i < available_upgrades.length; ++i) {
+    let upgrade = available_upgrades[i];
     let boxLeft = win.w / 2 - (win.w / 6 + 20) * 1.5 + (win.w / 6 + 20) * i;
 
     if (gameState.mouse_active) {
@@ -178,6 +226,7 @@ function upgrade(dt, gameState) {
       ? gameState.upgrade_mouse_active === i
       : gameState.upgrade_keyboard_active === i;
 
+    ctx.lineWidth = 2;
     ctx.strokeStyle = isActive ? "skyblue" : "white";
     ctx.fillStyle = `rgba(255, 255, 255, ${isActive ? 0.33 : 0.1})`;
     ctx.beginPath();
@@ -185,12 +234,34 @@ function upgrade(dt, gameState) {
     ctx.stroke();
     ctx.fill();
     ctx.fillStyle = "white";
-    ctx.fillText(
-      available_upgrades[i].name,
-      boxLeft + boxSize / 2,
-      boxTop + boxSize / 4
-    );
-    switch (available_upgrades[i].type) {
+    ctx.fillText(upgrade.name, boxLeft + boxSize / 2, boxTop + boxSize / 4);
+
+    ctx.strokeStyle = "white";
+    ctx.fillStyle = "skyblue";
+    ctx.lineWidth = 1;
+
+    let leftMost =
+      boxLeft +
+      boxSize / 2 +
+      (boxSize / 15 + boxSize / 30) *
+        ((max_upgrade_levels - 1) / 2 - (max_upgrade_levels - 1));
+    for (let i = 0; i < max_upgrade_levels; ++i) {
+      ctx.beginPath();
+      ctx.ellipse(
+        leftMost + (boxSize / 15 + boxSize / 30) * i,
+        boxTop + boxSize - boxSize / 15,
+        boxSize / 30,
+        boxSize / 30,
+        0,
+        0,
+        PI2
+      );
+
+      ctx.stroke();
+      if (gameState.upgrades[upgrade.type] > i) ctx.fill();
+    }
+
+    switch (upgrade.type) {
       case "fire_rate":
         drawLaser(
           ctx,
@@ -519,10 +590,9 @@ function play(dt, gameState) {
 
   if (has_screen_shake) clear_screen_shake(ctx);
 
-  // TODO: Delay switch to upgrade by a second after finishing a level
-
   if (gameState.asteroids.activeCount === 0) {
     gameState.screen = "upgrade";
+    gameState.screen_transition = 1500;
   }
 }
 
@@ -541,11 +611,22 @@ function gotoNextLevel(gameState) {
       gameState.win.w / 2,
       gameState.win.h / 2
     );
+    gameState.upgrades.fire_rate = 0;
+    gameState.upgrades.shiled_charge = 0;
+    gameState.upgrades.laser_speed = 0;
+    gameState.points = 0;
+    gameState.last_points_payed = 0;
   } else {
     gameState.player.resetForNewLevel(gameState);
   }
 
   let settings = getSettings(gameState.difficulty, gameState.level);
+  for (let i = 0; i < available_upgrades.length; ++i) {
+    let upgrade = available_upgrades[i];
+    let level = gameState.upgrades[upgrade.type];
+    let adjustment = upgrade.adjustment[level];
+    settings[upgrade.field] += adjustment;
+  }
   gameState.settings = settings;
 
   for (let i = 0; i < settings.asteroids.length; ++i) {

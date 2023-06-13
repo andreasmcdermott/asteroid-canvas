@@ -173,10 +173,9 @@ export class Player extends Entity {
       );
     }
 
-    // TODO: Fix positioning
-
     ctx.fillStyle = "white";
-    ctx.fillText(`${gameState.points}`, 500, 10);
+    ctx.textAlign = "right";
+    ctx.fillText(`Score: ${gameState.points}`, gameState.win.w - 10, 16);
   }
 
   _draw(ctx, x, y, strokeStyle) {
@@ -212,6 +211,7 @@ export class Player extends Entity {
       if (xx !== null && yy !== null) this._draw(ctx, xx, yy, strokeStyle);
     }
 
+    // if (gameState.screen === "play")
     this._drawGui(ctx, gameState);
   }
 
@@ -238,89 +238,92 @@ export class Player extends Entity {
         gameState.input.Shift || gameState.input[","] || gameState.input.Mouse2,
     };
 
-    if (actions.RotLeft) {
-      this.rot = -1;
-      gameState.mouse_active = false;
-    }
-    if (actions.RotRight) {
-      this.rot = 1;
-      gameState.mouse_active = false;
-    }
-    if (actions.RotLeft === actions.RotRight) this.rot = 0;
-
-    if (gameState.mouse_active && gameState.screen !== "pause") {
-      let dir = new Vec2(
-        gameState.input.MouseX - this.p.x,
-        gameState.input.MouseY - this.p.y
-      ).normalize();
-      this.angle = Math.atan2(dir.y, dir.x) * RAD2DEG;
-    } else this.angle = wrapDeg(this.angle + this.rot * player_rot_speed * dt);
-
-    if (actions.Shield && this.shield_charge > 0 && this.invincibility <= 0) {
-      this.shield_recharging = false;
-      this.shield = true;
-    } else {
-      if (!actions.Shield) this.shield_recharging = true;
-      this.shield = false;
-    }
-    if (this.shield) {
-      this.shield_charge = clampMin(this.shield_charge - dt);
-      if (this.shield_charge === 0) {
-        this.shield_cooldown_timer =
-          gameState.settings.shield_discharge_cooldown;
+    if (gameState.screen === "play") {
+      if (actions.RotLeft) {
+        this.rot = -1;
+        gameState.mouse_active = false;
       }
-    } else if (this.shield_recharging) {
-      this.shield_cooldown_timer = clampMin(this.shield_cooldown_timer - dt);
-      if (this.shield_cooldown_timer <= 0) {
-        this.shield_charge = clampMax(
-          this.shield_charge + dt * gameState.settings.shield_recharge_rate,
-          gameState.settings.max_shield_charge
-        );
+      if (actions.RotRight) {
+        this.rot = 1;
+        gameState.mouse_active = false;
       }
-    }
+      if (actions.RotLeft === actions.RotRight) this.rot = 0;
 
-    if (!this.shield && actions.Accelerate) {
-      let acc = Vec2.fromAngle(this.angle);
-      this.v.add(acc.scale(dt * player_acc));
-      if (this.v.len() > player_max_speed) {
-        this.v.normalize().scale(player_max_speed);
-      }
-      if (this.thrust_cooldown <= 0) {
-        this.thrust_cooldown = thrust_cooldown;
-        let v = Vec2.fromAngle(this.angle);
-        let x = this.p.x - v.x * this.h * 0.6;
-        let y = this.p.y - v.y * this.h * 0.6;
-        if (x < 0) x += gameState.win.w;
-        else if (x > gameState.win.w) x -= gameState.win.w;
-        if (y < 0) y += gameState.win.h;
-        else if (y > gameState.win.h) y += gameState.win.h;
-        particle(gameState, 1, {
-          x,
-          y,
-          life: thrust_max_age,
-          cr0: 255,
-          cg0: 255,
-          ca0: 1,
-          cr1: 200,
-          cg1: 55,
-          ca1: 0,
-          r0: thrust_size,
-          r1: 0,
-        });
-      }
-    }
+      if (gameState.mouse_active && gameState.screen !== "pause") {
+        let dir = new Vec2(
+          gameState.input.MouseX - this.p.x,
+          gameState.input.MouseY - this.p.y
+        ).normalize();
+        this.angle = Math.atan2(dir.y, dir.x) * RAD2DEG;
+      } else
+        this.angle = wrapDeg(this.angle + this.rot * player_rot_speed * dt);
 
-    if (!this.shield && actions.Fire && this.invincibility <= 0) {
-      if (this.laser_cooldown <= 0) {
-        this.laser_cooldown = gameState.settings.laser_cooldown;
-        let v = Vec2.fromAngle(this.angle);
-        let x = this.p.x + v.x * this.h * 0.5;
-        let y = this.p.y + v.y * this.h * 0.5;
-        if (x < 0) x += gameState.win.w;
-        else if (x > gameState.win.w) x -= gameState.win.w;
-        if (y < 0) y += gameState.win.h;
-        else if (y > gameState.win.h) y += gameState.win.h;
-        gameState.projectiles.push(gameState, x, y, this.angle);
+      if (actions.Shield && this.shield_charge > 0 && this.invincibility <= 0) {
+        this.shield_recharging = false;
+        this.shield = true;
+      } else {
+        if (!actions.Shield) this.shield_recharging = true;
+        this.shield = false;
+      }
+      if (this.shield) {
+        this.shield_charge = clampMin(this.shield_charge - dt);
+        if (this.shield_charge === 0) {
+          this.shield_cooldown_timer =
+            gameState.settings.shield_discharge_cooldown;
+        }
+      } else if (this.shield_recharging) {
+        this.shield_cooldown_timer = clampMin(this.shield_cooldown_timer - dt);
+        if (this.shield_cooldown_timer <= 0) {
+          this.shield_charge = clampMax(
+            this.shield_charge + dt * gameState.settings.shield_recharge_rate,
+            gameState.settings.max_shield_charge
+          );
+        }
+      }
+
+      if (!this.shield && actions.Accelerate) {
+        let acc = Vec2.fromAngle(this.angle);
+        this.v.add(acc.scale(dt * player_acc));
+        if (this.v.len() > player_max_speed) {
+          this.v.normalize().scale(player_max_speed);
+        }
+        if (this.thrust_cooldown <= 0) {
+          this.thrust_cooldown = thrust_cooldown;
+          let v = Vec2.fromAngle(this.angle);
+          let x = this.p.x - v.x * this.h * 0.6;
+          let y = this.p.y - v.y * this.h * 0.6;
+          if (x < 0) x += gameState.win.w;
+          else if (x > gameState.win.w) x -= gameState.win.w;
+          if (y < 0) y += gameState.win.h;
+          else if (y > gameState.win.h) y += gameState.win.h;
+          particle(gameState, 1, {
+            x,
+            y,
+            life: thrust_max_age,
+            cr0: 255,
+            cg0: 255,
+            ca0: 1,
+            cr1: 200,
+            cg1: 55,
+            ca1: 0,
+            r0: thrust_size,
+            r1: 0,
+          });
+        }
+      }
+
+      if (!this.shield && actions.Fire && this.invincibility <= 0) {
+        if (this.laser_cooldown <= 0) {
+          this.laser_cooldown = gameState.settings.laser_cooldown;
+          let v = Vec2.fromAngle(this.angle);
+          let x = this.p.x + v.x * this.h * 0.5;
+          let y = this.p.y + v.y * this.h * 0.5;
+          if (x < 0) x += gameState.win.w;
+          else if (x > gameState.win.w) x -= gameState.win.w;
+          if (y < 0) y += gameState.win.h;
+          else if (y > gameState.win.h) y += gameState.win.h;
+          gameState.projectiles.push(gameState, x, y, this.angle);
+        }
       }
     }
 
