@@ -29,10 +29,23 @@
   canvas.mouse_active {
     cursor: crosshair;
   }
+
+  #output {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+    pointer-events: none;
+  }
 </style>
 
 <body>
   <canvas id="game"></canvas>
+  <div id="output"></div>
 
   <script type="module">
     import {init} from './platform.mjs';
