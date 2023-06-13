@@ -46,6 +46,7 @@ let levels_by_difficulty = {
     max_shield_charge: 3000,
     shield_recharge_rate: 3,
     shield_discharge_cooldown: 1000,
+    points_modifier: 1,
   },
   medium: {
     levels: [
@@ -56,12 +57,13 @@ let levels_by_difficulty = {
       { asteroids: [0, 0, 0, 0, 0, 0], new_asteroids: { 1: 5, 2: 5 } },
     ],
     asteroid_sizes,
-    laser_speed: 0.75,
+    laser_speed: 1,
     asteroid_speed: [0.01, 0.175],
-    laser_cooldown: 250,
+    laser_cooldown: 200,
     max_shield_charge: 2000,
     shield_recharge_rate: 2,
     shield_discharge_cooldown: 2000,
+    points_modifier: 1.1,
   },
   hard: {
     levels: [
@@ -72,12 +74,13 @@ let levels_by_difficulty = {
       { asteroids: [0, 0, 0, 0, 0, 0, 0], new_asteroids: { 1: 7, 2: 8 } },
     ],
     asteroid_sizes,
-    laser_speed: 0.6,
+    laser_speed: 1,
     asteroid_speed: [0.01, 0.185],
-    laser_cooldown: 300,
+    laser_cooldown: 200,
     max_shield_charge: 1000,
     shield_recharge_rate: 1,
     shield_discharge_cooldown: 3000,
+    points_modifier: 1.15,
   },
 };
 

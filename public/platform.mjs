@@ -41,6 +41,7 @@ function nextFrame(t) {
   lt = t;
   canvas.classList.toggle("mouse_active", gameState.mouse_active);
   gameLoop(dt);
+  // TODO: Can we grab the canvas content and create a video/screenshot?
   gameState.lastInput = { ...gameState.input };
   requestAnimationFrame(nextFrame);
 }

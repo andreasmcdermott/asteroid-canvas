@@ -517,8 +517,14 @@ function gameOver(dt, gameState) {
   ctx.fillStyle = "white";
   ctx.font = "80px monospace";
   ctx.fillText("Game Over", win.w / 2, win.h / 2 - 50);
+  ctx.font = "30px monospace";
+  ctx.fillText(
+    `Final Score: ${Math.round(gameState.points).toLocaleString("en-US")}`,
+    win.w / 2,
+    win.h / 2 + 50
+  );
   ctx.font = "22px monospace";
-  ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
+  ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 150);
   if (gameState.input.Enter && !gameState.lastInput.Enter) {
     gameState.level = -1;
     gameState.screen = "play";
@@ -611,9 +617,10 @@ function gotoNextLevel(gameState) {
       gameState.win.w / 2,
       gameState.win.h / 2
     );
-    gameState.upgrades.fire_rate = 0;
-    gameState.upgrades.shiled_charge = 0;
-    gameState.upgrades.laser_speed = 0;
+    for (let i = 0; i < available_upgrades.length; ++i) {
+      let upgradeType = available_upgrades[i].type;
+      gameState.upgrades[upgradeType] = 0;
+    }
     gameState.points = 0;
     gameState.last_points_payed = 0;
   } else {

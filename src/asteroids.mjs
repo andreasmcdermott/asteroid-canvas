@@ -38,7 +38,8 @@ export class Asteroid extends Entity {
 
   _destroy(gameState) {
     this.deactivate();
-    gameState.points += 10 * (asteroid_levels - this.level);
+    gameState.points +=
+      10 * (asteroid_levels - this.level) * gameState.settings.points_modifier;
     if (Math.floor(gameState.points / 5000) > gameState.last_points_payed) {
       gameState.last_points_payed += 1;
       gameState.player.lives = clampMax(gameState.player.lives + 1, 5);

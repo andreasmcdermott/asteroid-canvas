@@ -175,7 +175,11 @@ export class Player extends Entity {
 
     ctx.fillStyle = "white";
     ctx.textAlign = "right";
-    ctx.fillText(`Score: ${gameState.points}`, gameState.win.w - 10, 16);
+    ctx.fillText(
+      `Score: ${Math.round(gameState.points).toLocaleString("en-US")}`,
+      gameState.win.w - 10,
+      16
+    );
   }
 
   _draw(ctx, x, y, strokeStyle) {
