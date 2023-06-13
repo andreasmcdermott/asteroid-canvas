@@ -11,6 +11,7 @@ import {
   RAD2DEG,
   distance,
   rnd,
+  keydown,
 } from "./utils.mjs";
 import { particle } from "./particles.mjs";
 
@@ -233,13 +234,17 @@ export class Player extends Entity {
     }
 
     let actions = {
-      RotLeft: gameState.input.ArrowLeft || gameState.input.a,
-      RotRight: gameState.input.ArrowRight || gameState.input.d,
-      Accelerate: gameState.input.ArrowUp || gameState.input.w,
+      RotLeft: keydown(gameState, "ArrowLeft") || keydown(gameState, "a"),
+      RotRight: keydown(gameState, "ArrowRight") || keydown(gameState, "d"),
+      Accelerate: keydown(gameState, "ArrowUp") || keydown(gameState, "w"),
       Fire:
-        gameState.input[" "] || gameState.input["."] || gameState.input.Mouse0,
+        keydown(gameState, " ") ||
+        keydown(gameState, ".") ||
+        keydown(gameState, "Mouse0"),
       Shield:
-        gameState.input.Shift || gameState.input[","] || gameState.input.Mouse2,
+        keydown(gameState, "Shift") ||
+        keydown(gameState, ",") ||
+        keydown(gameState, "Mouse2"),
     };
 
     if (gameState.screen === "play") {

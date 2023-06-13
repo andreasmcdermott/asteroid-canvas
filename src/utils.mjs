@@ -8,6 +8,14 @@ export function rnd(first, second) {
   return Math.random() * (second - first) + first;
 }
 
+export function keypressed(gameState, key) {
+  return !!(gameState.input[key] && gameState.lastInput[key]);
+}
+
+export function keydown(gameState, key) {
+  return !!gameState.input[key];
+}
+
 export class Rgba {
   static black = new Rgba(0, 0, 0);
   static white = new Rgba(255, 255, 255);

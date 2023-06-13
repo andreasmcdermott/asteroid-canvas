@@ -1,4 +1,4 @@
-import { Vec2, rnd, clampMin, clampMax, PI2 } from "./utils.mjs";
+import { Vec2, rnd, clampMin, clampMax, PI2, keypressed } from "./utils.mjs";
 import { Particle } from "./particles.mjs";
 import { Star } from "./stars.mjs";
 import { EntityList } from "./entities.mjs";
@@ -119,7 +119,7 @@ export function gameLoop(dt, gameState) {
 }
 
 function upgrade(dt, gameState) {
-  let { ctx, win, input, lastInput } = gameState;
+  let { ctx, win } = gameState;
 
   if (gameState.screen_transition > 0) {
     gameState.particles.updateAll(dt, gameState);
@@ -158,14 +158,11 @@ function upgrade(dt, gameState) {
   }
 
   let actions = {
-    Prev:
-      (input.ArrowLeft && !lastInput.ArrowLeft) || (input.a && !lastInput.a),
-    Next:
-      (input.ArrowRight && !lastInput.ArrowRight) || (input.d && !lastInput.d),
+    Prev: keypressed(gameState, "ArrowLeft") || keypressed(gameState, "a"),
+    Next: keypressed(gameState, "ArrowRight") || keypressed(gameState, "d"),
     SelectKeyboard:
-      (input.Enter && !lastInput.Enter) ||
-      (gameState.input[" "] && !gameState.lastInput[" "]),
-    SelectMouse: input.Mouse0 && !lastInput.Mouse0,
+      keypressed(gameState, "Enter") || keypressed(gameState, " "),
+    SelectMouse: keypressed(gameState, "Mouse0"),
   };
 
   if (actions.Prev) {
@@ -355,7 +352,7 @@ function upgrade(dt, gameState) {
 function pause(dt, gameState) {
   let { ctx, win } = gameState;
 
-  if (gameState.input.Escape && !gameState.lastInput.Escape) {
+  if (keypressed(gameState, "Escape")) {
     gameState.screen = "play";
     return;
   }
@@ -384,15 +381,10 @@ function menu(dt, gameState) {
 
   let actions = {
     SelectKeyboard:
-      (gameState.input["Enter"] && !gameState.lastInput["Enter"]) ||
-      (gameState.input[" "] && !gameState.lastInput[" "]),
-    SelectMouse: gameState.input.Mouse0 && !gameState.lastInput.Mouse0,
-    Up:
-      (gameState.input["ArrowUp"] && !gameState.lastInput["ArrowUp"]) ||
-      (gameState.input.w && !gameState.lastInput.w),
-    Down:
-      (gameState.input["ArrowDown"] && !gameState.lastInput["ArrowDown"]) ||
-      (gameState.input.s && !gameState.lastInput.s),
+      keypressed(gameState, "Enter") || keypressed(gameState, " "),
+    SelectMouse: keypressed(gameState, "Mouse0"),
+    Up: keypressed(gameState, "ArrowUp") || keypressed(gameState, "w"),
+    Down: keypressed(gameState, "ArrowDown") || keypressed(gameState, "s"),
   };
 
   if (actions.Up) {
@@ -542,7 +534,7 @@ function gameOver(dt, gameState) {
   );
   ctx.font = "22px monospace";
   ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 150);
-  if (gameState.input.Enter && !gameState.lastInput.Enter) {
+  if (keypressed(gameState, "Enter")) {
     gameState.level = -1;
     gameState.screen = "play";
   }
@@ -560,7 +552,7 @@ function gameWin(dt, gameState) {
   ctx.fillText("You Win", win.w / 2, win.h / 2 - 50);
   ctx.font = "22px monospace";
   ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
-  if (gameState.input.Enter && !gameState.lastInput.Enter) {
+  if (keypressed(gameState, "Enter")) {
     gameState.level = -1;
     gameState.screen = "play";
   }
@@ -586,8 +578,7 @@ function play(dt, gameState) {
   let { ctx } = gameState;
 
   if (
-    gameState.input.Escape &&
-    !gameState.lastInput.Escape &&
+    keypressed(gameState, "Escape") &&
     !gameState.player.destroyed &&
     gameState.asteroids.activeCount > 0
   ) {
@@ -601,21 +592,21 @@ function play(dt, gameState) {
 
   // Dev code for adding more astroid
 
-  if (gameState.input["1"] && !gameState.lastInput["1"])
+  if (keypressed(gameState, "1"))
     gameState.asteroids.push(
       gameState,
       rnd(gameState.win.w),
       rnd(gameState.win.h),
       0
     );
-  else if (gameState.input["2"] && !gameState.lastInput["2"])
+  else if (keypressed(gameState, "2"))
     gameState.asteroids.push(
       gameState,
       rnd(gameState.win.w),
       rnd(gameState.win.h),
       1
     );
-  else if (gameState.input["3"] && !gameState.lastInput["3"])
+  else if (keypressed(gameState, "3"))
     gameState.asteroids.push(
       gameState,
       rnd(gameState.win.w),
