@@ -58,7 +58,15 @@ export class Projectile extends Entity {
   }
 }
 
-export function drawLaser(ctx, x0, y0, x1, y1, strokeStyle, lineWidth = 2) {
+export function drawLaser(
+  ctx,
+  x0,
+  y0,
+  x1,
+  y1,
+  strokeStyle = "lightskyblue",
+  lineWidth = 2
+) {
   ctx.save();
   ctx.translate(x0, y0);
   ctx.lineWidth = lineWidth;

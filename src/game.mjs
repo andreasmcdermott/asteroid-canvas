@@ -54,6 +54,19 @@ export function initGame(w, h, ctx) {
   return gameState;
 }
 
+export function onResize(gameState) {
+  gameState.stars.reset();
+  let num_stars = rnd(gameState.stars.size / 2, gameState.stars.size);
+  for (let i = 0; i < num_stars; ++i) {
+    gameState.stars.push(
+      gameState,
+      rnd(gameState.win.w),
+      rnd(gameState.win.h),
+      rnd(1, 3)
+    );
+  }
+}
+
 function initStars(gameState) {
   let num_stars = rnd(gameState.stars.size / 2, gameState.stars.size);
   for (let i = 0; i < num_stars; ++i) {
@@ -82,7 +95,7 @@ function initMenu(gameState) {
   }
 }
 
-let screens = { play, menu, pause, gameOver, gameWin, upgrade };
+let screens = { play, menu, pause, gameOver, upgrade };
 
 export function gameLoop(dt, gameState) {
   let { ctx, win } = gameState;
@@ -133,11 +146,10 @@ function upgrade(dt, gameState) {
     gameState.screen_transition -= dt;
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(0, 0, win.w, win.h);
+    _drawGameTitle(ctx, gameState);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "white";
-    ctx.font = "80px monospace";
-    ctx.fillText("Asteroids", win.w / 2, win.h / 3);
     ctx.font = "22px monospace";
     ctx.fillText(
       `Level ${gameState.level + 1} Completed!`,
@@ -201,11 +213,10 @@ function upgrade(dt, gameState) {
 
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
   ctx.fillRect(0, 0, win.w, win.h);
+  _drawGameTitle(ctx, gameState);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "white";
-  ctx.font = "80px monospace";
-  ctx.fillText("Asteroids", win.w / 2, win.h / 3);
   ctx.font = "22px monospace";
   ctx.fillText(
     `Level ${gameState.level + 1} Completed!`,
@@ -283,6 +294,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 60,
           20,
           -20,
+          "lightskyblue",
           4
         );
         drawLaser(
@@ -291,6 +303,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 30,
           20,
           -20,
+          "lightskyblue",
           4
         );
         drawLaser(
@@ -299,6 +312,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2,
           20,
           -20,
+          "lightskyblue",
           4
         );
         break;
@@ -309,6 +323,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 30,
           50,
           -50,
+          "lightskyblue",
           4
         );
         drawLaser(
@@ -317,6 +332,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 35,
           30,
           -30,
+          "lightskyblue",
           1
         );
         drawLaser(
@@ -325,6 +341,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 40,
           35,
           -35,
+          "lightskyblue",
           1
         );
         drawLaser(
@@ -333,6 +350,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 50,
           10,
           -10,
+          "lightskyblue",
           1
         );
         break;
@@ -364,11 +382,10 @@ function pause(dt, gameState) {
 
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
   ctx.fillRect(0, 0, win.w, win.h);
+  _drawGameTitle(ctx, gameState);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "white";
-  ctx.font = "80px monospace";
-  ctx.fillText("Asteroids", win.w / 2, win.h / 3);
   ctx.font = "22px monospace";
   ctx.fillText("Press Escape to Resume", win.w / 2, win.h / 2 - 60);
 }
@@ -430,8 +447,7 @@ function menu(dt, gameState) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "white";
-  ctx.font = "80px monospace";
-  ctx.fillText("Asteroids", win.w / 2, win.h / 3);
+  _drawGameTitle(ctx, gameState);
 
   if (gameState.menu_screen === "help") {
     ctx.font = "16px monospace";
@@ -439,27 +455,18 @@ function menu(dt, gameState) {
     ctx.fillText(
       "Shoot: Left Mouse Button / Space / Period",
       win.w / 2,
-      win.h / 2
+      win.h / 2 - 40
     );
     ctx.fillText(
       "Shield: Right Mouse Button / Shift / Comma",
       win.w / 2,
-      win.h / 2 + 40
+      win.h / 2
     );
-    ctx.fillText("Thruster: Up / W", win.w / 2, win.h / 2 + 80);
-    ctx.fillText("Turn: Left|Right / A|D", win.w / 2, win.h / 2 + 120);
+    ctx.fillText("Thruster: Up / W", win.w / 2, win.h / 2 + 40);
+    ctx.fillText("Turn: Left|Right / A|D", win.w / 2, win.h / 2 + 80);
 
     ctx.font = "22px monospace";
-    ctx.fillText("Okay", win.w / 2, win.h / 2 + 240);
-    let size = ctx.measureText("Okay");
-    ctx.strokeStyle = "white";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(
-      win.w / 2 - size.actualBoundingBoxLeft - 20,
-      win.h / 2 + 240 - 20,
-      size.width + 40,
-      40
-    );
+    ctx.fillText("Press any key to go back ", win.w / 2, win.h / 2 + 180);
   } else {
     ctx.font = "22px monospace";
     gameState.menu_mouse_active = -1;
@@ -504,6 +511,20 @@ function menu(dt, gameState) {
   }
 }
 
+function _drawGameTitle(ctx, gameState) {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "white";
+  ctx.font = "80px monospace";
+  ctx.fillText("Asteroids", gameState.win.w / 2, gameState.win.h / 3);
+  ctx.font = "18px monospace";
+  ctx.fillText(
+    "By Andreas McDermott",
+    gameState.win.w / 2,
+    gameState.win.h / 3 + 50
+  );
+}
+
 function gameOver(dt, gameState) {
   let { ctx, win } = gameState;
 
@@ -539,24 +560,6 @@ function gameOver(dt, gameState) {
   );
   ctx.font = "22px monospace";
   ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 160);
-  if (keypressed(gameState, "Enter")) {
-    gameState.level = -1;
-    gameState.screen = "play";
-  }
-}
-
-function gameWin(dt, gameState) {
-  let { ctx, win } = gameState;
-
-  ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-  ctx.fillRect(0, 0, win.w, win.h);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "white";
-  ctx.font = "80px monospace";
-  ctx.fillText("You Win", win.w / 2, win.h / 2 - 50);
-  ctx.font = "22px monospace";
-  ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
   if (keypressed(gameState, "Enter")) {
     gameState.level = -1;
     gameState.screen = "play";

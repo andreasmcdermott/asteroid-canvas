@@ -147,18 +147,20 @@ function initEventListeners() {
     }
   );
 
-  // window.addEventListener(
-  //   "resize",
-  //   () => {
-  //     w = window.innerWidth;
-  //     h = window.innerHeight;
-  //     canvas.setAttribute("width", w);
-  //     canvas.setAttribute("height", h);
-  //     chunks = new Array(fps * seconds);
-  //     gameState.win.set(w, h);
-  //   },
-  //   { passive: true }
-  // );
+  window.addEventListener(
+    "resize",
+    () => {
+      w = window.innerWidth;
+      h = window.innerHeight;
+      gif_size = Math.min(w, h);
+      canvas.setAttribute("width", w);
+      canvas.setAttribute("height", h);
+      chunks = null;
+      gameState.win.set(w, h);
+      _Game.onResize(gameState);
+    },
+    { passive: true }
+  );
 
   document.getElementById("save-gif-btn").addEventListener("click", () => {
     document.body.classList.remove("show-save-prompt");

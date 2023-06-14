@@ -1113,11 +1113,10 @@ function upgrade(dt, gameState) {
     gameState.screen_transition -= dt;
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(0, 0, win.w, win.h);
+    _drawGameTitle(ctx, gameState);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "white";
-    ctx.font = "80px monospace";
-    ctx.fillText("Asteroids", win.w / 2, win.h / 3);
     ctx.font = "22px monospace";
     ctx.fillText(
       `Level ${gameState.level + 1} Completed!`,
@@ -1355,34 +1354,24 @@ function menu(dt, gameState) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "white";
-  ctx.font = "80px monospace";
-  ctx.fillText("Asteroids", win.w / 2, win.h / 3);
+  _drawGameTitle(ctx, gameState);
   if (gameState.menu_screen === "help") {
     ctx.font = "16px monospace";
     ctx.fillStyle = "white";
     ctx.fillText(
       "Shoot: Left Mouse Button / Space / Period",
       win.w / 2,
-      win.h / 2
+      win.h / 2 - 40
     );
     ctx.fillText(
       "Shield: Right Mouse Button / Shift / Comma",
       win.w / 2,
-      win.h / 2 + 40
+      win.h / 2
     );
-    ctx.fillText("Thruster: Up / W", win.w / 2, win.h / 2 + 80);
-    ctx.fillText("Turn: Left|Right / A|D", win.w / 2, win.h / 2 + 120);
+    ctx.fillText("Thruster: Up / W", win.w / 2, win.h / 2 + 40);
+    ctx.fillText("Turn: Left|Right / A|D", win.w / 2, win.h / 2 + 80);
     ctx.font = "22px monospace";
-    ctx.fillText("Okay", win.w / 2, win.h / 2 + 240);
-    let size = ctx.measureText("Okay");
-    ctx.strokeStyle = "white";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(
-      win.w / 2 - size.actualBoundingBoxLeft - 20,
-      win.h / 2 + 240 - 20,
-      size.width + 40,
-      40
-    );
+    ctx.fillText("Press any key to go back ", win.w / 2, win.h / 2 + 180);
   } else {
     ctx.font = "22px monospace";
     gameState.menu_mouse_active = -1;
@@ -1413,6 +1402,19 @@ function menu(dt, gameState) {
       ctx.fillText(gameState.menu_items[i], win.w / 2, win.h / 2 + 60 * i);
     }
   }
+}
+function _drawGameTitle(ctx, gameState) {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "white";
+  ctx.font = "80px monospace";
+  ctx.fillText("Asteroids", gameState.win.w / 2, gameState.win.h / 3);
+  ctx.font = "18px monospace";
+  ctx.fillText(
+    "By Andreas McDermott",
+    gameState.win.w / 2,
+    gameState.win.h / 3 + 50
+  );
 }
 function gameOver(dt, gameState) {
   let { ctx, win } = gameState;
