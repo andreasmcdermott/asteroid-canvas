@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "esbuild src/game.mjs --bundle --outfile=public/game.mjs --format=esm --platform=neutral",
     "start": "esbuild src/game.mjs --bundle --outfile=public/game.mjs --watch --servedir=public --format=esm --platform=neutral"
   },
   "keywords": [],
