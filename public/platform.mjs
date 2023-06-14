@@ -6,49 +6,74 @@ let w, h;
 let gameState;
 let canvas;
 let chunks;
-let fps = 25;
-let seconds = 10;
-let recording = false;
-let gifSize = 500;
+let final_chunks;
+let record_fps = 15;
+let record_seconds = 15;
+let record_frames = record_fps * record_seconds;
+let recording = 0; // 0 = stopped, 1 = recording, 2 = paused
+let gif_size;
 
 const startRecorder = () => {
-  if (recording) return;
-  chunks = new Array(fps * seconds);
-  recording = true;
+  if (recording === 1) return;
+  if (!chunks) chunks = new Array(record_frames);
+  recording = 1;
+  document.body.classList.remove("show-save-prompt");
+  document.body.classList.remove("show-gif");
 };
 
-const stopRecorder = async (e) => {
-  if (!recording) return;
-  recording = false;
-  const gif = GIFEncoder();
-  for (let i = 0; i < chunks.length; ++i) {
-    let data = chunks[i];
-    if (data) {
-      const palette = quantize(data, 256);
-      const index = applyPalette(data, palette);
-      gif.writeFrame(index, gifSize, gifSize, { palette });
+const pauseRecorder = () => {
+  recording = 2;
+};
+
+const stopRecorder = () => {
+  if (recording === 0) return;
+  recording = 0;
+  final_chunks = chunks;
+  chunks = null;
+  document.body.classList.add("show-save-prompt");
+};
+
+const saveGifRecording = async () => {
+  try {
+    const gif = GIFEncoder();
+    for (let i = 0; i < final_chunks.length; ++i) {
+      let data = final_chunks[i];
+      if (data) {
+        const palette = quantize(data, 256);
+        const index = applyPalette(data, palette);
+        gif.writeFrame(index, gif_size, gif_size, { palette });
+      }
     }
+    gif.finish();
+    final_chunks = null;
+    const output = gif.bytes();
+    const img = document.createElement("img");
+    img.width = gif_size / 2;
+    img.height = gif_size / 2;
+    let objectUrl = URL.createObjectURL(
+      new Blob([output.buffer], { type: "image/gif" })
+    );
+    img.src = objectUrl;
+    document.getElementById("download").download = "Asteroids.gif";
+    document.getElementById("download").href = objectUrl;
+    document.getElementById("img").innerHTML = "";
+    document.getElementById("img").appendChild(img);
+    document.body.classList.add("show-gif");
+  } catch (err) {
+    console.error(err);
   }
-  gif.finish();
-  const output = gif.bytes();
-  const img = document.createElement("img");
-  img.width = gifSize;
-  img.height = gifSize;
-  img.src = URL.createObjectURL(
-    new Blob([output.buffer], { type: "image/gif" })
-  );
-  document.getElementById("output").appendChild(img);
 };
 
 let _Game;
 function gameLoop(dt) {
   try {
     _Game.gameLoop(dt, gameState);
-    if (gameState.screen !== "gameOver") {
+    if (gameState.screen === "play") {
       startRecorder();
-    }
-    if (gameState.screen === "gameOver") {
-      setTimeout(stopRecorder, 100);
+    } else if (gameState.screen !== "gameOver") {
+      pauseRecorder();
+    } else if (gameState.screen === "gameOver") {
+      stopRecorder();
     }
   } catch (err) {
     console.error(err);
@@ -67,6 +92,7 @@ export function init(_canvas) {
   canvas = _canvas;
   w = window.innerWidth;
   h = window.innerHeight;
+  gif_size = Math.min(w, h);
   canvas.setAttribute("width", w);
   canvas.setAttribute("height", h);
   ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -84,27 +110,33 @@ function nextFrame(t) {
   lt = t;
   canvas.classList.toggle("mouse_active", gameState.mouse_active);
   gameLoop(dt);
-  if (recording) {
-    if (frameCounter++ > 4) {
-      let left = Math.max(gameState.player.p.x - gifSize / 2, 0);
-      let top = Math.max(gameState.player.p.y - gifSize / 2, 0);
-      if (left + gifSize > gameState.win.w) left = gameState.win.w - gifSize;
-      if (top + gifSize > gameState.win.h) top = gameState.win.h - gifSize;
+  if (recording === 1) {
+    if (++frameCounter >= 60 / record_fps) {
+      let left = gameState.player.p.x - gif_size / 2;
+      let top = gameState.player.p.y - gif_size / 2;
+      if (left + gif_size > w) left = w - gif_size;
+      else if (left < 0) left = 0;
+      if (top + gif_size > h) top = h - gif_size;
+      else if (top < 0) top = 0;
 
-      const { data } = gameState.ctx.getImageData(left, top, gifSize, gifSize);
+      const { data } = gameState.ctx.getImageData(
+        left,
+        top,
+        gif_size,
+        gif_size
+      );
 
-      if (chunks.length >= fps * seconds - 1) chunks.shift();
+      if (chunks.length >= record_frames - 1) chunks.shift();
       chunks.push(data);
       frameCounter = 0;
     }
   } else frameCounter = 0;
-  // TODO: Can we grab the canvas content and create a video/screenshot?
   gameState.lastInput = { ...gameState.input };
   requestAnimationFrame(nextFrame);
 }
-1;
 
 function initEventListeners() {
+  // Reload the game on change:
   new EventSource("http://localhost:8000/esbuild").addEventListener(
     "change",
     () => {
@@ -112,18 +144,27 @@ function initEventListeners() {
     }
   );
 
-  window.addEventListener(
-    "resize",
-    () => {
-      w = window.innerWidth;
-      h = window.innerHeight;
-      canvas.setAttribute("width", w);
-      canvas.setAttribute("height", h);
-      chunks = new Array(fps * seconds);
-      gameState.win.set(w, h);
-    },
-    { passive: true }
-  );
+  // window.addEventListener(
+  //   "resize",
+  //   () => {
+  //     w = window.innerWidth;
+  //     h = window.innerHeight;
+  //     canvas.setAttribute("width", w);
+  //     canvas.setAttribute("height", h);
+  //     chunks = new Array(fps * seconds);
+  //     gameState.win.set(w, h);
+  //   },
+  //   { passive: true }
+  // );
+
+  document.getElementById("save-gif-btn").addEventListener("click", () => {
+    document.body.classList.remove("show-save-prompt");
+    saveGifRecording();
+  });
+
+  document.getElementById("close-gif-btn").addEventListener("click", () => {
+    document.body.classList.remove("show-gif");
+  });
 
   window.addEventListener(
     "keydown",

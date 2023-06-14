@@ -25,7 +25,7 @@ export function refresh(gameState) {
 export function initGame(w, h, ctx) {
   let gameState = {
     ctx,
-    debug: true, // TODO: Should be false
+    debug: false,
     mouse_active: false,
     win: new Vec2(w, h),
     input: {},
@@ -99,7 +99,7 @@ export function gameLoop(dt, gameState) {
     ctx.fillStyle = "white";
     ctx.textAlign = "right";
     ctx.font = "14px monospace";
-    ctx.fillText(`FPS: ${(1000 / dt).toFixed(2)}`, win.w - 10, win.h - 10);
+    ctx.fillText(`FPS: ${Math.round(1000 / dt)}`, win.w - 10, win.h - 10);
     ctx.fillText(
       `Asteroids: ${gameState.asteroids.activeCount}`,
       win.w - 10,
@@ -533,7 +533,7 @@ function gameOver(dt, gameState) {
     win.h / 2 + 50
   );
   ctx.font = "22px monospace";
-  ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 150);
+  ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 160);
   if (keypressed(gameState, "Enter")) {
     gameState.level = -1;
     gameState.screen = "play";
