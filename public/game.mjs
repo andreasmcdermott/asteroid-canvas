@@ -991,7 +991,7 @@ var _Projectile = class extends Entity {
 };
 var Projectile = _Projectile;
 __publicField(Projectile, "laser_len", 32);
-function drawLaser(ctx, x0, y0, x1, y1, strokeStyle, lineWidth = 2) {
+function drawLaser(ctx, x0, y0, x1, y1, strokeStyle = "lightskyblue", lineWidth = 2) {
   ctx.save();
   ctx.translate(x0, y0);
   ctx.lineWidth = lineWidth;
@@ -1045,6 +1045,18 @@ function initGame(w, h, ctx) {
   initStars(gameState);
   return gameState;
 }
+function onResize(gameState) {
+  gameState.stars.reset();
+  let num_stars = rnd(gameState.stars.size / 2, gameState.stars.size);
+  for (let i = 0; i < num_stars; ++i) {
+    gameState.stars.push(
+      gameState,
+      rnd(gameState.win.w),
+      rnd(gameState.win.h),
+      rnd(1, 3)
+    );
+  }
+}
 function initStars(gameState) {
   let num_stars = rnd(gameState.stars.size / 2, gameState.stars.size);
   for (let i = 0; i < num_stars; ++i) {
@@ -1071,7 +1083,7 @@ function initMenu(gameState) {
     );
   }
 }
-var screens = { play, menu, pause, gameOver, gameWin, upgrade };
+var screens = { play, menu, pause, gameOver, upgrade };
 function gameLoop(dt, gameState) {
   let { ctx, win } = gameState;
   let screen = screens[gameState.screen];
@@ -1162,11 +1174,10 @@ function upgrade(dt, gameState) {
   }
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
   ctx.fillRect(0, 0, win.w, win.h);
+  _drawGameTitle(ctx, gameState);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "white";
-  ctx.font = "80px monospace";
-  ctx.fillText("Asteroids", win.w / 2, win.h / 3);
   ctx.font = "22px monospace";
   ctx.fillText(
     `Level ${gameState.level + 1} Completed!`,
@@ -1224,6 +1235,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 60,
           20,
           -20,
+          "lightskyblue",
           4
         );
         drawLaser(
@@ -1232,6 +1244,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 30,
           20,
           -20,
+          "lightskyblue",
           4
         );
         drawLaser(
@@ -1240,6 +1253,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2,
           20,
           -20,
+          "lightskyblue",
           4
         );
         break;
@@ -1250,6 +1264,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 30,
           50,
           -50,
+          "lightskyblue",
           4
         );
         drawLaser(
@@ -1258,6 +1273,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 35,
           30,
           -30,
+          "lightskyblue",
           1
         );
         drawLaser(
@@ -1266,6 +1282,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 40,
           35,
           -35,
+          "lightskyblue",
           1
         );
         drawLaser(
@@ -1274,6 +1291,7 @@ function upgrade(dt, gameState) {
           boxTop + boxSize / 2 + 50,
           10,
           -10,
+          "lightskyblue",
           1
         );
         break;
@@ -1301,11 +1319,10 @@ function pause(dt, gameState) {
   gameState.particles.drawAll(ctx, gameState);
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
   ctx.fillRect(0, 0, win.w, win.h);
+  _drawGameTitle(ctx, gameState);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "white";
-  ctx.font = "80px monospace";
-  ctx.fillText("Asteroids", win.w / 2, win.h / 3);
   ctx.font = "22px monospace";
   ctx.fillText("Press Escape to Resume", win.w / 2, win.h / 2 - 60);
 }
@@ -1451,22 +1468,6 @@ function gameOver(dt, gameState) {
     gameState.screen = "play";
   }
 }
-function gameWin(dt, gameState) {
-  let { ctx, win } = gameState;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-  ctx.fillRect(0, 0, win.w, win.h);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "white";
-  ctx.font = "80px monospace";
-  ctx.fillText("You Win", win.w / 2, win.h / 2 - 50);
-  ctx.font = "22px monospace";
-  ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 50);
-  if (keypressed(gameState, "Enter")) {
-    gameState.level = -1;
-    gameState.screen = "play";
-  }
-}
 function add_screen_shake(ctx, gameState) {
   if (gameState.screen_shake > 0) {
     let strength = gameState.screen_shake / 10;
@@ -1568,5 +1569,6 @@ function gotoNextLevel(gameState) {
 export {
   gameLoop,
   initGame,
+  onResize,
   refresh
 };

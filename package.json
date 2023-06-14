@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "esbuild src/game.mjs --bundle --outfile=public/game.mjs --format=esm --platform=neutral",
-    "start": "esbuild src/game.mjs --bundle --outfile=public/game.mjs --watch --servedir=public --format=esm --platform=neutral"
+    "build": "esbuild src/game.mjs src/platform.mjs --bundle --outdir=public --out-extension:.js=.mjs --format=esm --platform=neutral --define:IS_DEV=false",
+    "start": "esbuild src/game.mjs src/platform.mjs --bundle --outdir=public --out-extension:.js=.mjs --format=esm --platform=neutral --watch --servedir=public --define:IS_DEV=true"
   },
   "keywords": [],
   "author": "",

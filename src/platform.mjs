@@ -1,39 +1,39 @@
-// src/platform.mjs
 import { GIFEncoder, quantize, applyPalette } from "https://unpkg.com/gifenc";
-var lt;
-var ctx;
-var w;
-var h;
-var gameState;
-var canvas;
-var chunks;
-var final_chunks;
-var record_fps = 15;
-var record_seconds = 30;
-var record_frames = record_fps * record_seconds;
-var recording = 0;
-var gif_size;
-var startRecorder = () => {
-  if (recording === 1)
-    return;
-  if (!chunks)
-    chunks = new Array(record_frames);
+
+let lt;
+let ctx;
+let w, h;
+let gameState;
+let canvas;
+let chunks;
+let final_chunks;
+let record_fps = 15;
+let record_seconds = 30;
+let record_frames = record_fps * record_seconds;
+let recording = 0; // 0 = stopped, 1 = recording, 2 = paused
+let gif_size;
+
+const startRecorder = () => {
+  if (recording === 1) return;
+  if (!chunks) chunks = new Array(record_frames);
   recording = 1;
   document.body.classList.remove("show-save-prompt");
   document.body.classList.remove("show-gif");
 };
-var pauseRecorder = () => {
+
+const pauseRecorder = () => {
   recording = 2;
 };
-var stopRecorder = () => {
-  if (recording === 0)
-    return;
+
+const stopRecorder = () => {
+  if (recording === 0) return;
   recording = 0;
   final_chunks = chunks;
   chunks = null;
   document.body.classList.add("show-save-prompt");
 };
-var saveGifRecording = async () => {
+
+const saveGifRecording = async () => {
   try {
     const gif = GIFEncoder();
     for (let i = 0; i < final_chunks.length; ++i) {
@@ -63,7 +63,8 @@ var saveGifRecording = async () => {
     console.error(err);
   }
 };
-var _Game;
+
+let _Game;
 function gameLoop(dt) {
   try {
     _Game.gameLoop(dt, gameState);
@@ -71,27 +72,30 @@ function gameLoop(dt) {
       startRecorder();
     } else if (gameState.screen !== "gameOver") {
       pauseRecorder();
-    } else if (gameState.screen === "gameOver" && gameState.screen_transition <= 0) {
+    } else if (
+      gameState.screen === "gameOver" &&
+      gameState.screen_transition <= 0
+    ) {
       stopRecorder();
     }
   } catch (err) {
     console.error(err);
   }
 }
+
 function loadGame(cb) {
   let loadFrom = "./game.mjs";
-  if (NODE_ENV === "dev") {
+  if (IS_DEV) {
     loadFrom = `http://localhost:8000/game.mjs?t=${Date.now()}`;
   }
   import(loadFrom).then((module) => {
     _Game = module;
-    if (cb)
-      cb();
-    else
-      _Game.refresh(gameState);
+    if (cb) cb();
+    else _Game.refresh(gameState);
   });
 }
-function init(_canvas) {
+
+export function init(_canvas) {
   canvas = _canvas;
   w = window.innerWidth;
   h = window.innerHeight;
@@ -106,9 +110,10 @@ function init(_canvas) {
     requestAnimationFrame(nextFrame);
   });
 }
-var frameCounter = 0;
+
+let frameCounter = 0;
 function nextFrame(t) {
-  let dt = t - lt;
+  let dt = t - lt; // dt is ~16ms
   lt = t;
   canvas.classList.toggle("mouse_active", gameState.mouse_active);
   gameLoop(dt);
@@ -116,37 +121,38 @@ function nextFrame(t) {
     if (++frameCounter >= 60 / record_fps) {
       let left = gameState.player.p.x - gif_size / 2;
       let top = gameState.player.p.y - gif_size / 2;
-      if (left + gif_size > w)
-        left = w - gif_size;
-      else if (left < 0)
-        left = 0;
-      if (top + gif_size > h)
-        top = h - gif_size;
-      else if (top < 0)
-        top = 0;
+      if (left + gif_size > w) left = w - gif_size;
+      else if (left < 0) left = 0;
+      if (top + gif_size > h) top = h - gif_size;
+      else if (top < 0) top = 0;
+
       const { data } = gameState.ctx.getImageData(
         left,
         top,
         gif_size,
         gif_size
       );
-      if (chunks.length >= record_frames - 1)
-        chunks.shift();
+
+      if (chunks.length >= record_frames - 1) chunks.shift();
       chunks.push(data);
       frameCounter = 0;
     }
-  } else
-    frameCounter = 0;
+  } else frameCounter = 0;
   gameState.lastInput = { ...gameState.input };
   requestAnimationFrame(nextFrame);
 }
+
 function initEventListeners() {
-  new EventSource("http://localhost:8000/esbuild").addEventListener(
-    "change",
-    () => {
-      loadGame();
-    }
-  );
+  if (IS_DEV) {
+    // Reload the game on change:
+    new EventSource("http://localhost:8000/esbuild").addEventListener(
+      "change",
+      () => {
+        loadGame();
+      }
+    );
+  }
+
   window.addEventListener(
     "resize",
     () => {
@@ -161,13 +167,16 @@ function initEventListeners() {
     },
     { passive: true }
   );
+
   document.getElementById("save-gif-btn").addEventListener("click", () => {
     document.body.classList.remove("show-save-prompt");
     saveGifRecording();
   });
+
   document.getElementById("close-gif-btn").addEventListener("click", () => {
     document.body.classList.remove("show-gif");
   });
+
   window.addEventListener(
     "keydown",
     (e) => {
@@ -175,15 +184,16 @@ function initEventListeners() {
     },
     { passive: true }
   );
+
   window.addEventListener(
     "keyup",
     (e) => {
       delete gameState.input[e.key];
-      if (e.key === "Backspace")
-        gameState.debug = !gameState.debug;
+      if (e.key === "Backspace") gameState.debug = !gameState.debug;
     },
     { passive: true }
   );
+
   window.addEventListener(
     "mousemove",
     (e) => {
@@ -193,6 +203,7 @@ function initEventListeners() {
     },
     { passive: true }
   );
+
   window.addEventListener(
     "mousedown",
     (e) => {
@@ -200,6 +211,7 @@ function initEventListeners() {
     },
     { passive: true }
   );
+
   window.addEventListener(
     "mouseup",
     (e) => {
@@ -207,14 +219,12 @@ function initEventListeners() {
     },
     { passive: true }
   );
+
   window.addEventListener("blur", (e) => {
-    if (gameState.screen === "play")
-      gameState.screen = "pause";
+    if (gameState.screen === "play") gameState.screen = "pause";
   });
+
   window.addEventListener("contextmenu", (e) => {
     e.preventDefault();
   });
 }
-export {
-  init
-};
