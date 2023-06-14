@@ -105,6 +105,9 @@ export function init(_canvas) {
   ctx = canvas.getContext("2d", { willReadFrequently: true });
   loadGame(() => {
     gameState = _Game.initGame(w, h, ctx);
+    if (IS_DEV) {
+      window._gameState = gameState;
+    }
     initEventListeners();
     lt = performance.now();
     requestAnimationFrame(nextFrame);
