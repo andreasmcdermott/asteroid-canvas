@@ -92,20 +92,20 @@ export class Asteroid extends Entity {
     );
   }
 
-  draw(ctx, gameState) {
-    let xx = null;
-    let yy = null;
-    if (this.p.x - this.radius < 0) xx = this.p.x + gameState.win.w;
-    else if (this.p.x + this.radius > gameState.win.w)
-      xx = this.p.x - gameState.win.w;
-    if (this.p.y - this.radius < 0) yy = this.p.y + gameState.win.h;
-    else if (this.p.y + this.radius > gameState.win.h)
-      yy = this.p.y - gameState.win.h;
+  draw(ctx) {
+    // let xx = null;
+    // let yy = null;
+    // if (this.p.x - this.radius < 0) xx = this.p.x + gameState.win.w;
+    // else if (this.p.x + this.radius > gameState.win.w)
+    //   xx = this.p.x - gameState.win.w;
+    // if (this.p.y - this.radius < 0) yy = this.p.y + gameState.win.h;
+    // else if (this.p.y + this.radius > gameState.win.h)
+    //   yy = this.p.y - gameState.win.h;
 
     this._draw(ctx, this.p.x, this.p.y);
-    if (xx !== null) this._draw(ctx, xx, this.p.y);
-    if (yy !== null) this._draw(ctx, this.p.x, yy);
-    if (xx !== null && yy !== null) this._draw(ctx, xx, yy);
+    // if (xx !== null) this._draw(ctx, xx, this.p.y);
+    // if (yy !== null) this._draw(ctx, this.p.x, yy);
+    // if (xx !== null && yy !== null) this._draw(ctx, xx, yy);
   }
 
   update(dt, gameState) {
@@ -114,13 +114,14 @@ export class Asteroid extends Entity {
 
     // Wrap around:
 
-    if (this.p.x - this.radius > gameState.win.w) this.p.x -= gameState.win.w;
-    else if (this.p.x + this.radius < 0) this.p.x += gameState.win.w;
-    if (this.p.y - this.radius > gameState.win.h) this.p.y -= gameState.win.h;
-    else if (this.p.y + this.radius < 0) this.p.y += gameState.win.h;
+    if (this.p.x - this.radius > gameState.win.w) this.p.x = -this.radius;
+    else if (this.p.x + this.radius < 0)
+      this.p.x = gameState.win.w + this.radius;
+    if (this.p.y - this.radius > gameState.win.h) this.p.y = -this.radius;
+    else if (this.p.y + this.radius < 0)
+      this.p.y = gameState.win.h + this.radius;
 
     // Collisions with projectiles:
-    // TODO: Handle collision when wrapping around
     for (let projectile of gameState.projectiles) {
       if (
         line_intersect_circle(

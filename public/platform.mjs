@@ -8,7 +8,7 @@ let canvas;
 let chunks;
 let final_chunks;
 let record_fps = 15;
-let record_seconds = 15;
+let record_seconds = 30;
 let record_frames = record_fps * record_seconds;
 let recording = 0; // 0 = stopped, 1 = recording, 2 = paused
 let gif_size;
@@ -72,7 +72,10 @@ function gameLoop(dt) {
       startRecorder();
     } else if (gameState.screen !== "gameOver") {
       pauseRecorder();
-    } else if (gameState.screen === "gameOver") {
+    } else if (
+      gameState.screen === "gameOver" &&
+      gameState.screen_transition <= 0
+    ) {
       stopRecorder();
     }
   } catch (err) {

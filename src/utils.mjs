@@ -9,7 +9,7 @@ export function rnd(first, second) {
 }
 
 export function keypressed(gameState, key) {
-  return !!gameState.input[key] && !gameState.lastInput[key];
+  return !gameState.input[key] && !!gameState.lastInput[key];
 }
 
 export function keydown(gameState, key) {

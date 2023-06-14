@@ -201,19 +201,19 @@ export class Player extends Entity {
         );
       }
 
-      let xx = null;
-      let yy = null;
-      if (this.p.x - this.w < 0) xx = this.p.x + gameState.win.w;
-      else if (this.p.x + this.w > gameState.win.w)
-        xx = this.p.x - gameState.win.w;
-      if (this.p.y - this.h < 0) yy = this.p.y + gameState.win.h;
-      else if (this.p.y + this.h > gameState.win.h)
-        yy = this.p.y - gameState.win.h;
+      // let xx = null;
+      // let yy = null;
+      // if (this.p.x - this.w < 0) xx = this.p.x + gameState.win.w;
+      // else if (this.p.x + this.w > gameState.win.w)
+      //   xx = this.p.x - gameState.win.w;
+      // if (this.p.y - this.h < 0) yy = this.p.y + gameState.win.h;
+      // else if (this.p.y + this.h > gameState.win.h)
+      //   yy = this.p.y - gameState.win.h;
 
       this._draw(ctx, this.p.x, this.p.y, strokeStyle);
-      if (xx !== null) this._draw(ctx, xx, this.p.y, strokeStyle);
-      if (yy !== null) this._draw(ctx, this.p.x, yy, strokeStyle);
-      if (xx !== null && yy !== null) this._draw(ctx, xx, yy, strokeStyle);
+      // if (xx !== null) this._draw(ctx, xx, this.p.y, strokeStyle);
+      // if (yy !== null) this._draw(ctx, this.p.x, yy, strokeStyle);
+      // if (xx !== null && yy !== null) this._draw(ctx, xx, yy, strokeStyle);
     }
 
     // if (gameState.screen === "play")
@@ -229,6 +229,7 @@ export class Player extends Entity {
         if (this.restart_timer <= 0) this._restart(gameState);
       } else {
         gameState.screen = "gameOver";
+        gameState.screen_transition = 1500;
       }
       return;
     }
@@ -267,7 +268,7 @@ export class Player extends Entity {
       } else
         this.angle = wrapDeg(this.angle + this.rot * player_rot_speed * dt);
 
-      if (actions.Shield && this.shield_charge > 0 && this.invincibility <= 0) {
+      if (actions.Shield && this.shield_charge > 0) {
         this.shield_recharging = false;
         this.shield = true;
       } else {
@@ -321,7 +322,7 @@ export class Player extends Entity {
         }
       }
 
-      if (!this.shield && actions.Fire && this.invincibility <= 0) {
+      if (!this.shield && actions.Fire) {
         if (this.laser_cooldown <= 0) {
           this.laser_cooldown = gameState.settings.laser_cooldown;
           let v = Vec2.fromAngle(this.angle);
@@ -338,18 +339,16 @@ export class Player extends Entity {
 
     this.p.add(this.v.copy().scale(dt));
 
-    if (this.p.x - this.w > gameState.win.w) this.p.x -= gameState.win.x;
-    else if (this.p.x + this.w < 0) this.p.x += gameState.win.x;
-    if (this.p.y - this.h > gameState.win.y) this.p.y -= gameState.win.y;
-    else if (this.p.y + this.h < 0) this.p.y += gameState.win.y;
+    if (this.p.x - this.w > gameState.win.w) this.p.x = -this.w;
+    else if (this.p.x + this.w < 0) this.p.x = gameState.win.x + this.w;
+    if (this.p.y - this.h > gameState.win.y) this.p.y = -this.h;
+    else if (this.p.y + this.h < 0) this.p.y = gameState.win.y + this.h;
 
     this.thrust_cooldown = clampMin(this.thrust_cooldown - dt);
     this.laser_cooldown = clampMin(this.laser_cooldown - dt);
     this.invincibility = clampMin(this.invincibility - dt);
 
     // Collision with asteroids
-
-    // TODO: Handle collision when wrapping around
 
     if (this.invincibility <= 0) {
       for (let asteroid of gameState.asteroids) {

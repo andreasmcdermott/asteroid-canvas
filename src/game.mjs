@@ -519,7 +519,12 @@ function gameOver(dt, gameState) {
 
   if (has_screen_shake) clear_screen_shake(ctx);
 
-  ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+  if (gameState.screen_transition > 0) {
+    gameState.screen_transition -= dt;
+    return;
+  }
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
   ctx.fillRect(0, 0, win.w, win.h);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
