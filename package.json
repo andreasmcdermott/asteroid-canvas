@@ -1,16 +1,22 @@
 {
   "name": "astroid-canvas",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Asteroids game that runs in the browser.",
+  "main": "public/index.html",
   "scripts": {
     "build": "esbuild src/game.mjs src/platform.mjs --bundle --outdir=public --out-extension:.js=.mjs --format=esm --platform=neutral --define:IS_DEV=false",
     "start": "esbuild src/game.mjs src/platform.mjs --bundle --outdir=public --out-extension:.js=.mjs --format=esm --platform=neutral --watch --servedir=public --define:IS_DEV=true"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "javascript",
+    "asteroids",
+    "2d",
+    "canvas",
+    "game"
+  ],
+  "author": "Andreas McDermott",
   "license": "MIT",
-  "dependencies": {
+  "devDependencies": {
     "esbuild": "^0.18.1"
   }
 }
