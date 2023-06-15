@@ -30,3 +30,4 @@ There are a number of improvements to make or missing features to add:
 - Refactor the GUI code
 - Bug fixes
 - Game balance (difficulty, rewards, etc)
+- Improve (eg move to worker to avoid browser locking up) or remove the GIF code
