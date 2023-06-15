@@ -26,6 +26,7 @@ This is a relatively standard version of the classic Asteroids game implemented 
 There are a number of improvements to make or missing features to add:
 
 - Sound and music
+- Gamepad
 - Refactor the GUI code
 - Bug fixes
 - Game balance (difficulty, rewards, etc)
