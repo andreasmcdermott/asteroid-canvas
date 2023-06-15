@@ -355,15 +355,15 @@ export class Player extends Entity {
         let d = distance(this.p, asteroid.p);
         if (d < this.r + asteroid.radius) {
           if (this.shield) {
+            let diff_vec = asteroid.p.copy().sub(this.p).normalize();
+
             this.v = this.p
               .copy()
               .sub(asteroid.p)
               .normalize()
               .scale((asteroid.v.len() + this.v.len()) * 0.5);
-            asteroid.v = asteroid.p
+            asteroid.v = diff_vec
               .copy()
-              .sub(this.p)
-              .normalize()
               .scale((asteroid.v.len() + this.v.len()) * 0.45);
             asteroid.p.add(
               asteroid.v
@@ -371,6 +371,24 @@ export class Player extends Entity {
                 .normalize()
                 .scale(this.r + asteroid.radius - d)
             );
+            let collp = this.p.copy().add(diff_vec.copy().scale(this.r));
+            let dir = collp.copy().normalize();
+            particle(gameState, 15, {
+              x: collp.x,
+              y: collp.y,
+              v0x: [dir.x - 2, dir.x + 2],
+              v0y: [dir.y - 2, dir.y + 2],
+              v0v: [0.5, 0.75],
+              v1v: 0,
+              cr0: 100,
+              cg0: 255,
+              cb0: 100,
+              ca0: 1,
+              ca1: 0,
+              r0: [1, 2],
+              life: [50, 200],
+              delay: [0, 10],
+            });
           } else {
             if (this.active) {
               this._destroy(gameState);
