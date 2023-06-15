@@ -8,7 +8,7 @@ let canvas;
 let chunks;
 let final_chunks;
 let record_fps = 15;
-let record_seconds = 30;
+let record_seconds = 15;
 let record_frames = record_fps * record_seconds;
 let recording = 0; // 0 = stopped, 1 = recording, 2 = paused
 let gif_size;
@@ -227,7 +227,7 @@ function initEventListeners() {
     if (gameState.screen === "play") gameState.screen = "pause";
   });
 
-  window.addEventListener("contextmenu", (e) => {
+  canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
   });
 }
