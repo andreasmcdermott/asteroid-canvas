@@ -32,7 +32,7 @@ export function initGame(w, h, ctx) {
     lastInput: {},
     player: new Player(),
     projectiles: new EntityList(100, Projectile),
-    asteroids: new EntityList(100, Asteroid),
+    asteroids: new EntityList(200, Asteroid),
     stars: new EntityList(100, Star),
     particles: new EntityList(500, Particle),
     screen: "menu",
