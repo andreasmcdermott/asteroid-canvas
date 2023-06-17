@@ -4,7 +4,7 @@ import { Star, initStars } from "./stars.mjs";
 import { EntityList } from "./entities.mjs";
 import { Asteroid } from "./asteroids.mjs";
 import { Player, drawShield } from "./players.mjs";
-import { Projectile, drawLaser } from "./projectiles.mjs";
+import { Projectile, drawLaser, initLaser } from "./projectiles.mjs";
 import {
   available_upgrades,
   getSettings,
@@ -45,6 +45,7 @@ export function initGame(w, h, ctx, assets) {
   };
   initMenu(gameState);
   initStars(gameState);
+  initLaser(gameState);
   return gameState;
 }
 
@@ -283,74 +284,43 @@ function upgrade(dt, gameState) {
     switch (upgrade.type) {
       case "fire_rate":
         drawLaser(
-          ctx,
+          gameState,
           boxLeft + boxSize / 2 - 40,
           boxTop + boxSize / 2 + 60,
-          20,
-          -20,
-          "lightskyblue",
-          4
+          10,
+          30,
+          45
         );
         drawLaser(
-          ctx,
-          boxLeft + boxSize / 2 - 10,
-          boxTop + boxSize / 2 + 30,
-          20,
-          -20,
-          "lightskyblue",
-          4
+          gameState,
+          boxLeft + boxSize / 2 - 5,
+          boxTop + boxSize / 2 + 25,
+          10,
+          30,
+          45
         );
         drawLaser(
-          ctx,
-          boxLeft + boxSize / 2 + 20,
-          boxTop + boxSize / 2,
-          20,
-          -20,
-          "lightskyblue",
-          4
+          gameState,
+          boxLeft + boxSize / 2 + 30,
+          boxTop + boxSize / 2 - 10,
+          10,
+          30,
+          45
         );
         break;
       case "laser_speed":
         drawLaser(
-          ctx,
-          boxLeft + boxSize / 2 - 30,
-          boxTop + boxSize / 2 + 30,
-          50,
-          -50,
-          "lightskyblue",
-          4
-        );
-        drawLaser(
-          ctx,
-          boxLeft + boxSize / 2 - 45,
+          gameState,
+          boxLeft + boxSize / 2 - 10,
           boxTop + boxSize / 2 + 35,
-          30,
-          -30,
-          "lightskyblue",
-          1
-        );
-        drawLaser(
-          ctx,
-          boxLeft + boxSize / 2 - 30,
-          boxTop + boxSize / 2 + 40,
-          35,
-          -35,
-          "lightskyblue",
-          1
-        );
-        drawLaser(
-          ctx,
-          boxLeft + boxSize / 2 - 50,
-          boxTop + boxSize / 2 + 50,
-          10,
-          -10,
-          "lightskyblue",
-          1
+          20,
+          100,
+          45
         );
         break;
       case "shield_charge":
         drawShield(
-          ctx,
+          gameState,
           boxLeft + boxSize / 2,
           boxTop + boxSize / 2 + 25,
           0,

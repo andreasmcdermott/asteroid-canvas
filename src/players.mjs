@@ -192,20 +192,12 @@ export class Player extends Entity {
           this.w / 2
         );
       }
-      if (this.shield) {
-        ctx.globalAlpha = 0.75;
-        ctx.globalCompositeOperation = "source-over";
-        Player.shield.draw(gameState, -this.r, -this.r, this.r * 2, this.r * 2);
-        ctx.globalCompositeOperation = "darken";
-        ctx.fillStyle = "rgba(50,255,185,1)";
-        ctx.beginPath();
-        ctx.ellipse(0, 0, this.r, this.r, 0, 0, PI2);
-        ctx.fill();
-      }
-      ctx.fillStyle = "white";
-      ctx.globalCompositeOperation = "source-over";
-      ctx.globalAlpha = 1;
       ctx.restore();
+      ctx.globalAlpha = 1;
+
+      if (this.shield) {
+        drawShield(gameState, this.p.x, this.p.y, this.angle, this.r);
+      }
     }
 
     if (gameState.screen === "play") this.drawGui(ctx, gameState);
@@ -376,59 +368,21 @@ export class Player extends Entity {
   }
 }
 
-function drawShip(
-  ctx,
-  x,
-  y,
-  angle,
-  w,
-  h,
-  strokeStyle = "white",
-  fillStyle = "black",
-  lineWidth = 2
-) {
+export function drawShield(gameState, x, y, angle, r) {
+  let { ctx } = gameState;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle * DEG2RAD);
-  ctx.lineWidth = lineWidth;
-  ctx.fillStyle = fillStyle;
-  ctx.strokeStyle = strokeStyle;
-  // Wings
-  ctx.beginPath();
-  ctx.moveTo(h * -0.5, 0);
-  ctx.lineTo(h * -0.4, w);
-  ctx.lineTo(h * -0.1, w);
-  ctx.lineTo(0, 0);
-  ctx.lineTo(h * -0.1, -w);
-  ctx.lineTo(h * -0.4, -w);
-  ctx.lineTo(h * -0.5, 0);
-  ctx.fill();
-  ctx.stroke();
-  // Body
-  ctx.beginPath();
-  ctx.moveTo(h * 0.5, 0);
-  ctx.lineTo(h * -0.5, w * 0.5);
-  ctx.lineTo(h * -0.5, w * -0.5);
-  ctx.lineTo(h * 0.5, 0);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-}
-
-export function drawShield(ctx, x, y, angle, r) {
-  let gradient = ctx.createRadialGradient(0, 0, r / 8, 0, 0, r * 2);
-  gradient.addColorStop(0, "rgba(128, 255, 128, 0.75)");
-  gradient.addColorStop(1, "rgba(100, 255, 100, 0.1)");
-
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle * DEG2RAD);
-  ctx.lineWidth = 1;
-  ctx.fillStyle = gradient;
-  ctx.strokeStyle = "rgba(100, 255, 100, 1)";
+  ctx.globalAlpha = 0.75;
+  ctx.globalCompositeOperation = "source-over";
+  Player.shield.draw(gameState, -r, -r, r * 2, r * 2);
+  ctx.globalCompositeOperation = "darken";
+  ctx.fillStyle = "rgba(50,255,185,1)";
   ctx.beginPath();
   ctx.ellipse(0, 0, r, r, 0, 0, PI2);
   ctx.fill();
-  ctx.stroke();
   ctx.restore();
+  ctx.fillStyle = "white";
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
 }
