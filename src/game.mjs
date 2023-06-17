@@ -1,6 +1,6 @@
 import { Vec2, rnd, clampMin, clampMax, PI2, keypressed } from "./utils.mjs";
 import { Particle } from "./particles.mjs";
-import { Star } from "./stars.mjs";
+import { Star, initStars } from "./stars.mjs";
 import { EntityList } from "./entities.mjs";
 import { Asteroid } from "./asteroids.mjs";
 import { Player, drawShield } from "./players.mjs";
@@ -11,29 +11,23 @@ import {
   max_upgrade_levels,
 } from "./constants.mjs";
 
-export function refresh(gameState) {
-  gameState.player = new Player().copyFrom(gameState.player);
-  gameState.projectiles = EntityList.copyFrom(
-    gameState.projectiles,
-    Projectile
-  );
-  gameState.asteroids = EntityList.copyFrom(gameState.asteroids, Asteroid);
-  gameState.stars = EntityList.copyFrom(gameState.stars, Star);
-  gameState.particles = EntityList.copyFrom(gameState.particles, Particle);
-}
+let screens = { play, menu, pause, gameOver, upgrade };
 
-export function initGame(w, h, ctx) {
+export function initGame(w, h, ctx, assets) {
   let gameState = {
     ctx,
+    assets,
     debug: false,
-    mouse_active: false,
+    has_mouse_lock: false,
+    mx: w / 2,
+    my: h / 2,
     win: new Vec2(w, h),
     input: {},
     lastInput: {},
     player: new Player(),
     projectiles: new EntityList(100, Projectile),
     asteroids: new EntityList(200, Asteroid),
-    stars: new EntityList(100, Star),
+    stars: new EntityList(60, Star),
     particles: new EntityList(500, Particle),
     screen: "menu",
     level: -1,
@@ -54,20 +48,22 @@ export function initGame(w, h, ctx) {
   return gameState;
 }
 
-export function onResize(gameState) {
-  gameState.stars.reset();
-  let num_stars = rnd(gameState.stars.size / 2, gameState.stars.size);
-  for (let i = 0; i < num_stars; ++i) {
-    gameState.stars.push(
-      gameState,
-      rnd(gameState.win.w),
-      rnd(gameState.win.h),
-      rnd(1, 3)
-    );
-  }
+export function refresh(gameState) {
+  gameState.player = new Player().copyFrom(gameState.player);
+  gameState.projectiles = EntityList.copyFrom(
+    gameState.projectiles,
+    Projectile
+  );
+  gameState.asteroids = EntityList.copyFrom(gameState.asteroids, Asteroid);
+  gameState.stars = EntityList.copyFrom(gameState.stars, Star);
+  gameState.particles = EntityList.copyFrom(gameState.particles, Particle);
 }
 
-function initStars(gameState) {
+export function onResize(gameState) {
+  if (gameState.mx > gameState.win.w) gameState.mx = gameState.win.w;
+  if (gameState.my > gameState.win.h) gameState.mx = gameState.win.h;
+
+  gameState.stars.reset();
   let num_stars = rnd(gameState.stars.size / 2, gameState.stars.size);
   for (let i = 0; i < num_stars; ++i) {
     gameState.stars.push(
@@ -95,8 +91,6 @@ function initMenu(gameState) {
   }
 }
 
-let screens = { play, menu, pause, gameOver, upgrade };
-
 export function gameLoop(dt, gameState) {
   let { ctx, win } = gameState;
   let screen = screens[gameState.screen];
@@ -111,7 +105,7 @@ export function gameLoop(dt, gameState) {
   if (gameState.debug) {
     ctx.fillStyle = "white";
     ctx.textAlign = "right";
-    ctx.font = "14px monospace";
+    ctx.font = "14px kenvectorfuture";
     ctx.fillText(`FPS: ${Math.round(1000 / dt)}`, win.w - 10, win.h - 10);
     ctx.fillText(
       `Asteroids: ${gameState.asteroids.activeCount}`,
@@ -150,7 +144,7 @@ function upgrade(dt, gameState) {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "white";
-    ctx.font = "22px monospace";
+    ctx.font = "22px kenvectorfuture";
     ctx.fillText(
       `Level ${gameState.level + 1} Completed!`,
       win.w / 2,
@@ -217,14 +211,14 @@ function upgrade(dt, gameState) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "white";
-  ctx.font = "22px monospace";
+  ctx.font = "22px kenvectorfuture";
   ctx.fillText(
     `Level ${gameState.level + 1} Completed!`,
     win.w / 2,
     win.h / 2 - 80
   );
 
-  ctx.font = "18px monospace";
+  ctx.font = "18px kenvectorfuture";
   ctx.fillText(`Pick your Upgrade:`, win.w / 2, win.h / 2 - 20);
 
   let boxSize = win.w / 6;
@@ -386,7 +380,7 @@ function pause(dt, gameState) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "white";
-  ctx.font = "22px monospace";
+  ctx.font = "22px kenvectorfuture";
   ctx.fillText("Press Escape to Resume", win.w / 2, win.h / 2 - 60);
 }
 
@@ -450,7 +444,7 @@ function menu(dt, gameState) {
   _drawGameTitle(ctx, gameState);
 
   if (gameState.menu_screen === "help") {
-    ctx.font = "16px monospace";
+    ctx.font = "16px kenvectorfuture";
     ctx.fillStyle = "white";
     ctx.fillText(
       "Shoot: Left Mouse Button / Space / Period",
@@ -465,10 +459,10 @@ function menu(dt, gameState) {
     ctx.fillText("Thruster: Up / W", win.w / 2, win.h / 2 + 40);
     ctx.fillText("Turn: Left|Right / A|D", win.w / 2, win.h / 2 + 80);
 
-    ctx.font = "22px monospace";
+    ctx.font = "22px kenvectorfuture";
     ctx.fillText("Press any key to go back ", win.w / 2, win.h / 2 + 180);
   } else {
-    ctx.font = "22px monospace";
+    ctx.font = "22px kenvectorfuture";
     gameState.menu_mouse_active = -1;
     for (let i = 0; i < gameState.menu_items.length; ++i) {
       let size = ctx.measureText(gameState.menu_items[i]);
@@ -515,9 +509,9 @@ function _drawGameTitle(ctx, gameState) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "white";
-  ctx.font = "80px monospace";
+  ctx.font = "80px kenvectorfuture";
   ctx.fillText("Asteroids", gameState.win.w / 2, gameState.win.h / 3);
-  ctx.font = "18px monospace";
+  ctx.font = "18px kenvectorfuture";
   ctx.fillText(
     "By Andreas McDermott",
     gameState.win.w / 2,
@@ -550,15 +544,15 @@ function gameOver(dt, gameState) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "white";
-  ctx.font = "80px monospace";
+  ctx.font = "80px kenvectorfuture";
   ctx.fillText("Game Over", win.w / 2, win.h / 2 - 50);
-  ctx.font = "30px monospace";
+  ctx.font = "30px kenvectorfuture";
   ctx.fillText(
     `Final Score: ${Math.round(gameState.points).toLocaleString("en-US")}`,
     win.w / 2,
     win.h / 2 + 50
   );
-  ctx.font = "22px monospace";
+  ctx.font = "22px kenvectorfuture";
   ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 160);
   if (keypressed(gameState, "Enter")) {
     gameState.level = -1;

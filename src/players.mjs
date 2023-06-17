@@ -1,7 +1,7 @@
 import { Entity } from "./entities.mjs";
 import {
   Vec2,
-  Rgba,
+  ImageAsset,
   DEG2RAD,
   PI2,
   clampMin,
@@ -12,30 +12,34 @@ import {
   distance,
   rnd,
   keydown,
+  SpriteSheetImage,
 } from "./utils.mjs";
 import { particle } from "./particles.mjs";
 
 let player_acc = 0.0006;
 let player_max_speed = 0.3;
 let player_rot_speed = 0.5;
-let thrust_size = [6, 12];
-let thrust_max_age = 300;
 let thrust_cooldown = 30;
 let player_invincibilty_max = 1500;
 let restart_cooldown = 500;
 
 export class Player extends Entity {
+  static ship = new SpriteSheetImage(305, 384, 94, 96, 90);
+  static shield = new ImageAsset("shield", 0, 0, 512, 512);
+  static thrust = new SpriteSheetImage(610, 0, 62, 126, 90);
+
   constructor() {
     super();
-    this.w = 24;
+    this.w = 64;
     this.h = 64;
-    this.r = this.h / 1.7;
-    this.angle = 0;
+    this.r = Math.max(this.w, this.h) * 0.65;
+    this.angle = 270;
     this.rot = 0;
     this.v = new Vec2();
     this.destroyed = false;
     this.restart_timer = 0;
     this.lives = 0;
+    this.acc = false;
   }
 
   activate(gameState, x, y) {
@@ -52,6 +56,7 @@ export class Player extends Entity {
     this.shield_cooldown_timer = 0;
     this.invincibility = player_invincibilty_max;
     this.lives = 3;
+    this.acc = false;
   }
 
   resetForNewLevel(gameState) {
@@ -59,6 +64,7 @@ export class Player extends Entity {
   }
 
   _restart(gameState) {
+    this.acc = false;
     this.destroyed = false;
     this.restart_timer = 0;
     this.angle = 270;
@@ -114,7 +120,7 @@ export class Player extends Entity {
     });
   }
 
-  _drawGui(ctx, gameState) {
+  drawGui(ctx, gameState) {
     ctx.lineWidth = 2;
     ctx.strokeStyle = "rgb(25, 255, 25)";
     ctx.fillStyle =
@@ -130,10 +136,10 @@ export class Player extends Entity {
               : 0.5
           })`
         : `rgba(25, 255, 25, 0.5)`;
-    ctx.strokeRect(10, 10, 200, 20);
+    ctx.strokeRect(15, 15, 200, 20);
     ctx.fillRect(
-      12,
-      12,
+      17,
+      17,
       196 *
         (this.shield_charge <= 0
           ? 1
@@ -145,33 +151,11 @@ export class Player extends Entity {
 
     let i = 0;
     for (i; i < this.lives; ++i) {
-      drawShip(
-        ctx,
-        250 + i * (this.w / 3 + 20),
-        20,
-        270,
-        this.w / 3,
-        this.h / 3,
-        "rgba(255, 255, 255, 1)",
-        "rgba(0, 0, 0, 0.5)",
-        1
-      );
-    }
-
-    if (this.restart_timer > 0) {
-      drawShip(
-        ctx,
-        250 + i * (this.w / 3 + 20),
-        20,
-        270,
-        this.w / 3,
-        this.h / 3,
-        `rgba(255, 255, 255, ${Math.sin(
-          (this.restart_timer / restart_cooldown) * PI * 8
-        )})`,
-        "rgba(0, 0, 0, 0.5)",
-        1
-      );
+      ctx.save();
+      ctx.translate(250 + i * (this.w / 2 + 10), 10);
+      ctx.rotate(-90 * DEG2RAD);
+      Player.ship.draw(gameState, 0, 0, this.w / 2, this.h / 2);
+      ctx.restore();
     }
 
     ctx.fillStyle = "white";
@@ -183,41 +167,48 @@ export class Player extends Entity {
     );
   }
 
-  _draw(ctx, x, y, strokeStyle) {
-    drawShip(ctx, x, y, this.angle, this.w, this.h, strokeStyle);
-    if (this.shield) drawShield(ctx, x, y, this.angle, this.r);
-  }
-
   draw(ctx, gameState) {
     if (this.active && !this.destroyed) {
-      let strokeStyle = Rgba.white.copy();
+      let alpha = 1;
 
       if (this.invincibility > 0) {
-        strokeStyle.alpha(
-          clampMin(
-            Math.sin((this.invincibility / player_invincibilty_max) * PI * 12),
-            0.25
-          )
+        alpha = clampMin(
+          Math.sin((this.invincibility / player_invincibilty_max) * PI * 12),
+          0.25
         );
       }
 
-      // let xx = null;
-      // let yy = null;
-      // if (this.p.x - this.w < 0) xx = this.p.x + gameState.win.w;
-      // else if (this.p.x + this.w > gameState.win.w)
-      //   xx = this.p.x - gameState.win.w;
-      // if (this.p.y - this.h < 0) yy = this.p.y + gameState.win.h;
-      // else if (this.p.y + this.h > gameState.win.h)
-      //   yy = this.p.y - gameState.win.h;
-
-      this._draw(ctx, this.p.x, this.p.y, strokeStyle);
-      // if (xx !== null) this._draw(ctx, xx, this.p.y, strokeStyle);
-      // if (yy !== null) this._draw(ctx, this.p.x, yy, strokeStyle);
-      // if (xx !== null && yy !== null) this._draw(ctx, xx, yy, strokeStyle);
+      ctx.save();
+      ctx.translate(this.p.x, this.p.y);
+      ctx.rotate(this.angle * DEG2RAD);
+      ctx.globalAlpha = alpha;
+      Player.ship.draw(gameState, -this.w * 0.5, -this.h * 0.5, this.w, this.h);
+      if (this.acc) {
+        Player.thrust.draw(
+          gameState,
+          this.w / -9,
+          this.h * 0.5 - 11,
+          this.w / 4,
+          this.w / 2
+        );
+      }
+      if (this.shield) {
+        ctx.globalAlpha = 0.75;
+        ctx.globalCompositeOperation = "source-over";
+        Player.shield.draw(gameState, -this.r, -this.r, this.r * 2, this.r * 2);
+        ctx.globalCompositeOperation = "darken";
+        ctx.fillStyle = "rgba(50,255,185,1)";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, this.r, this.r, 0, 0, PI2);
+        ctx.fill();
+      }
+      ctx.fillStyle = "white";
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+      ctx.restore();
     }
 
-    // if (gameState.screen === "play")
-    this._drawGui(ctx, gameState);
+    if (gameState.screen === "play") this.drawGui(ctx, gameState);
   }
 
   update(dt, gameState) {
@@ -292,6 +283,7 @@ export class Player extends Entity {
       }
 
       if (!this.shield && actions.Accelerate) {
+        this.acc = true;
         let acc = Vec2.fromAngle(this.angle);
         this.v.add(acc.scale(dt * player_acc));
         if (this.v.len() > player_max_speed) {
@@ -299,27 +291,9 @@ export class Player extends Entity {
         }
         if (this.thrust_cooldown <= 0) {
           this.thrust_cooldown = thrust_cooldown;
-          let v = Vec2.fromAngle(this.angle);
-          let x = this.p.x - v.x * this.h * 0.6;
-          let y = this.p.y - v.y * this.h * 0.6;
-          if (x < 0) x += gameState.win.w;
-          else if (x > gameState.win.w) x -= gameState.win.w;
-          if (y < 0) y += gameState.win.h;
-          else if (y > gameState.win.h) y += gameState.win.h;
-          particle(gameState, 1, {
-            x,
-            y,
-            life: thrust_max_age,
-            cr0: 255,
-            cg0: 255,
-            ca0: 1,
-            cr1: 200,
-            cg1: 55,
-            ca1: 0,
-            r0: thrust_size,
-            r1: 0,
-          });
         }
+      } else {
+        this.acc = false;
       }
 
       if (!this.shield && actions.Fire) {

@@ -1,59 +1,46 @@
 import { Entity } from "./entities.mjs";
-import { Vec2, point_inside } from "./utils.mjs";
+import { DEG2RAD, SpriteSheetImage, Vec2, point_inside } from "./utils.mjs";
 
 // let fade_out = 10;
 // let life_span = 1500;
 
 export class Projectile extends Entity {
-  static laser_len = 32;
+  static laser = new SpriteSheetImage(464, 448, 32, 64, 180);
+  static laserc = new SpriteSheetImage(688, 160, 62, 126, 90);
 
   constructor() {
     super();
     this.angle = 0;
     this.v = new Vec2();
-    this.len = 0;
     this.speed = 0;
     this.life = 0;
   }
 
   activate(gameState, x, y, angle) {
     super.activate(gameState, x, y);
-    this.angle = angle;
+    this.angle = angle - 270;
     this.v = Vec2.fromAngle(angle);
-    this.len = Projectile.laser_len;
     this.speed = gameState.settings.laser_speed;
     this.life = 0;
   }
 
-  draw(ctx) {
-    // if (this.life >= life_span) this.deactivate();
-    let strokeStyle = `rgba(135, 206, 250, 1)`; /*${clampMax(
-      (life_span - this.life) / fade_out,
-      1
-    )})`;*/
-    drawLaser(
-      ctx,
-      this.p.x,
-      this.p.y,
-      this.v.x * this.len,
-      this.v.y * this.len,
-      strokeStyle
-    );
+  draw(ctx, gameState) {
+    ctx.save();
+    ctx.translate(this.p.x, this.p.y);
+    ctx.rotate(this.angle * DEG2RAD);
+    Projectile.laser.draw(gameState, -5, 0, 10, 30);
+    ctx.restore();
+    // drawLaser(
+    //   ctx,
+    //   this.p.x,
+    //   this.p.y,
+    //   this.v.x * this.len,
+    //   this.v.y * this.len
+    // );
   }
 
   update(dt, gameState) {
-    // this.life += dt;
     this.p.add(this.v.copy().scale(dt * this.speed));
-
-    // TODO: Uncomment to wrap around
-
-    // if (this.p.x - this.v.x * this.len > gameState.win.w)
-    //   this.p.x -= gameState.win.x;
-    // else if (this.p.x + this.v.x * this.len < 0) this.p.x += gameState.win.x;
-    // if (this.p.y - this.v.y * this.len > gameState.win.y)
-    //   this.p.y -= gameState.win.y;
-    // else if (this.p.y + this.v.y * this.len < 0) this.p.y += gameState.win.y;
-
     if (!point_inside(this.p, Vec2.origin, gameState.win)) this.deactivate();
   }
 }

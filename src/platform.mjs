@@ -1,83 +1,13 @@
-import { GIFEncoder, quantize, applyPalette } from "https://unpkg.com/gifenc";
-
 let lt;
 let ctx;
 let w, h;
 let gameState;
 let canvas;
-let chunks;
-let final_chunks;
-let record_fps = 15;
-let record_seconds = 15;
-let record_frames = record_fps * record_seconds;
-let recording = 0; // 0 = stopped, 1 = recording, 2 = paused
-let gif_size;
-
-const startRecorder = () => {
-  if (recording === 1) return;
-  if (!chunks) chunks = new Array(record_frames);
-  recording = 1;
-  document.body.classList.remove("show-save-prompt");
-  document.body.classList.remove("show-gif");
-};
-
-const pauseRecorder = () => {
-  recording = 2;
-};
-
-const stopRecorder = () => {
-  if (recording === 0) return;
-  recording = 0;
-  final_chunks = chunks;
-  chunks = null;
-  document.body.classList.add("show-save-prompt");
-};
-
-const saveGifRecording = async () => {
-  try {
-    const gif = GIFEncoder();
-    for (let i = 0; i < final_chunks.length; ++i) {
-      let data = final_chunks[i];
-      if (data) {
-        const palette = quantize(data, 256);
-        const index = applyPalette(data, palette);
-        gif.writeFrame(index, gif_size, gif_size, { palette });
-      }
-    }
-    gif.finish();
-    final_chunks = null;
-    const output = gif.bytes();
-    const img = document.createElement("img");
-    img.width = gif_size / 2;
-    img.height = gif_size / 2;
-    let objectUrl = URL.createObjectURL(
-      new Blob([output.buffer], { type: "image/gif" })
-    );
-    img.src = objectUrl;
-    document.getElementById("download").download = "Asteroids.gif";
-    document.getElementById("download").href = objectUrl;
-    document.getElementById("img").innerHTML = "";
-    document.getElementById("img").appendChild(img);
-    document.body.classList.add("show-gif");
-  } catch (err) {
-    console.error(err);
-  }
-};
-
 let _Game;
+
 function gameLoop(dt) {
   try {
     _Game.gameLoop(dt, gameState);
-    if (gameState.screen === "play") {
-      startRecorder();
-    } else if (gameState.screen !== "gameOver") {
-      pauseRecorder();
-    } else if (
-      gameState.screen === "gameOver" &&
-      gameState.screen_transition <= 0
-    ) {
-      stopRecorder();
-    }
   } catch (err) {
     console.error(err);
   }
@@ -95,52 +25,64 @@ function loadGame(cb) {
   });
 }
 
+function loadImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve(img);
+    };
+    img.src = url;
+  });
+}
+
+function loadAssets(cb) {
+  let font = new FontFace(
+    "kenvectorfuture",
+    "url(assets/kenvector_future.ttf)",
+    {
+      style: "normal",
+      weight: "400",
+    }
+  );
+
+  Promise.all([
+    font.load(),
+    loadImage("assets/simpleSpace_sheet@2.png"),
+    loadImage("assets/crosshairs_tilesheet_white@2.png"),
+    loadImage("assets/tilemap.png"),
+    loadImage("assets/uipackSpace_sheet.png"),
+    loadImage("assets/shield.png"),
+  ]).then(([, tilesheet, crosshairs, controls, ui, shield]) => {
+    document.fonts.add(font);
+    cb({ tilesheet, crosshairs, controls, ui, shield });
+  });
+}
+
 export function init(_canvas) {
   canvas = _canvas;
   w = window.innerWidth;
   h = window.innerHeight;
-  gif_size = Math.min(w, h);
   canvas.setAttribute("width", w);
   canvas.setAttribute("height", h);
-  ctx = canvas.getContext("2d", { willReadFrequently: true });
-  loadGame(() => {
-    gameState = _Game.initGame(w, h, ctx);
-    if (IS_DEV) {
-      window._gameState = gameState;
-    }
-    initEventListeners();
-    lt = performance.now();
-    requestAnimationFrame(nextFrame);
+  ctx = canvas.getContext("2d");
+
+  loadAssets((assets) => {
+    loadGame(() => {
+      gameState = _Game.initGame(w, h, ctx, assets);
+      if (IS_DEV) {
+        window._gameState = gameState;
+      }
+      initEventListeners();
+      lt = performance.now();
+      requestAnimationFrame(nextFrame);
+    });
   });
 }
 
-let frameCounter = 0;
 function nextFrame(t) {
   let dt = t - lt; // dt is ~16ms
   lt = t;
-  canvas.classList.toggle("mouse_active", gameState.mouse_active);
   gameLoop(dt);
-  if (recording === 1) {
-    if (++frameCounter >= 60 / record_fps) {
-      let left = gameState.player.p.x - gif_size / 2;
-      let top = gameState.player.p.y - gif_size / 2;
-      if (left + gif_size > w) left = w - gif_size;
-      else if (left < 0) left = 0;
-      if (top + gif_size > h) top = h - gif_size;
-      else if (top < 0) top = 0;
-
-      const { data } = gameState.ctx.getImageData(
-        left,
-        top,
-        gif_size,
-        gif_size
-      );
-
-      if (chunks.length >= record_frames - 1) chunks.shift();
-      chunks.push(data);
-      frameCounter = 0;
-    }
-  } else frameCounter = 0;
   gameState.lastInput = { ...gameState.input };
   requestAnimationFrame(nextFrame);
 }
@@ -161,24 +103,13 @@ function initEventListeners() {
     () => {
       w = window.innerWidth;
       h = window.innerHeight;
-      gif_size = Math.min(w, h);
       canvas.setAttribute("width", w);
       canvas.setAttribute("height", h);
-      chunks = null;
       gameState.win.set(w, h);
       _Game.onResize(gameState);
     },
     { passive: true }
   );
-
-  document.getElementById("save-gif-btn").addEventListener("click", () => {
-    document.body.classList.remove("show-save-prompt");
-    saveGifRecording();
-  });
-
-  document.getElementById("close-gif-btn").addEventListener("click", () => {
-    document.body.classList.remove("show-gif");
-  });
 
   window.addEventListener(
     "keydown",
@@ -199,10 +130,9 @@ function initEventListeners() {
 
   window.addEventListener(
     "mousemove",
-    (e) => {
-      gameState.mouse_active = true;
-      gameState.input["MouseX"] = e.x;
-      gameState.input["MouseY"] = e.y;
+    ({ movementX, movementY }) => {
+      gameState.input["MouseX"] = movementX;
+      gameState.input["MouseY"] = movementY;
     },
     { passive: true }
   );
@@ -224,7 +154,21 @@ function initEventListeners() {
   );
 
   window.addEventListener("blur", (e) => {
-    if (gameState.screen === "play") gameState.screen = "pause";
+    if (gameState.screen === "play" && !IS_DEV) gameState.screen = "pause";
+  });
+
+  document.addEventListener(
+    "pointerlockchange",
+    () => {
+      gameState.has_mouse_lock = document.pointerLockElement === canvas;
+    },
+    { passive: true }
+  );
+
+  canvas.addEventListener("click", async () => {
+    if (!document.pointerLockElement) {
+      await canvas.requestPointerLock({ unadjustedMovement: true });
+    }
   });
 
   canvas.addEventListener("contextmenu", (e) => {

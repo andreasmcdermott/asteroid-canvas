@@ -16,9 +16,52 @@ export function keydown(gameState, key) {
   return !!gameState.input[key];
 }
 
+export class ImageAsset {
+  constructor(name, x, y, w, h = w, rot = 0) {
+    this.name = name;
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.rot = rot;
+  }
+
+  copyFrom(a) {
+    this.name = a.name;
+    this.x = a.x;
+    this.y = a.y;
+    this.w = a.w;
+    this.h = a.h;
+    this.rot = a.rot;
+  }
+
+  draw(gameState, x, y, w, h = w) {
+    gameState.ctx.save();
+    gameState.ctx.rotate(this.rot * DEG2RAD);
+    gameState.ctx.drawImage(
+      gameState.assets[this.name],
+      this.x,
+      this.y,
+      this.w,
+      this.h,
+      x,
+      y,
+      w,
+      h
+    );
+    gameState.ctx.restore();
+  }
+}
+
+export class SpriteSheetImage extends ImageAsset {
+  constructor(x, y, w, h = w, rot = 0) {
+    super("tilesheet", x, y, w, h, rot);
+  }
+}
+
 export class Rgba {
   static black = new Rgba(0, 0, 0);
-  static white = new Rgba(255, 255, 255);
+  static white = new Rgba(255, 255, 205);
 
   static lerp(c0, c1, t0, t) {
     return new Rgba(

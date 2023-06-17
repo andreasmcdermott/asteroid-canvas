@@ -8,18 +8,33 @@ import {
   DEG2RAD,
   clampMax,
   line_intersect_circle,
+  SpriteSheetImage,
 } from "./utils.mjs";
 
 let asteroid_rot_speed = [0.05, 0.15];
 let asteroid_start_dir = [-1, 1];
 
 export class Asteroid extends Entity {
+  static large = [
+    new SpriteSheetImage(592, 288, 96),
+    new SpriteSheetImage(592, 192, 96),
+  ];
+  static medium = [
+    new SpriteSheetImage(688, 287, 64),
+    new SpriteSheetImage(736, 96, 64),
+  ];
+  static small = [
+    new SpriteSheetImage(400, 448, 64),
+    new SpriteSheetImage(216, 192, 64),
+  ];
+
   constructor() {
     super();
     this.level = -1;
     this.radius = 0;
     this.angle = 0;
     this.rot = 0;
+    this.img = new SpriteSheetImage(0, 0, 0, 0);
     this.v = new Vec2();
   }
 
@@ -28,6 +43,13 @@ export class Asteroid extends Entity {
     let settings = gameState.settings;
     this.level = level;
     this.radius = rnd(...settings.asteroid_sizes[level]) * 0.5;
+    this.img = (
+      this.level === 0
+        ? Asteroid.large
+        : this.level === 1
+        ? Asteroid.medium
+        : Asteroid.small
+    )[Math.floor(rnd(2))];
     this.angle = rnd(360);
     this.rot = rnd(-1, 1) * rnd(...asteroid_rot_speed);
     this.v
@@ -81,31 +103,12 @@ export class Asteroid extends Entity {
     });
   }
 
-  _draw(ctx, x, y) {
-    drawAsteroid(
-      ctx,
-      x,
-      y,
-      this.angle,
-      this.radius,
-      asteroid_levels - this.level + 1
-    );
-  }
-
-  draw(ctx) {
-    // let xx = null;
-    // let yy = null;
-    // if (this.p.x - this.radius < 0) xx = this.p.x + gameState.win.w;
-    // else if (this.p.x + this.radius > gameState.win.w)
-    //   xx = this.p.x - gameState.win.w;
-    // if (this.p.y - this.radius < 0) yy = this.p.y + gameState.win.h;
-    // else if (this.p.y + this.radius > gameState.win.h)
-    //   yy = this.p.y - gameState.win.h;
-
-    this._draw(ctx, this.p.x, this.p.y);
-    // if (xx !== null) this._draw(ctx, xx, this.p.y);
-    // if (yy !== null) this._draw(ctx, this.p.x, yy);
-    // if (xx !== null && yy !== null) this._draw(ctx, xx, yy);
+  draw(ctx, gameState) {
+    ctx.save();
+    ctx.translate(this.p.x, this.p.y);
+    ctx.rotate(this.angle * DEG2RAD);
+    this.img.draw(gameState, -this.radius, -this.radius, this.radius * 2);
+    ctx.restore();
   }
 
   update(dt, gameState) {
@@ -148,27 +151,4 @@ export class Asteroid extends Entity {
       }
     }
   }
-}
-
-function drawAsteroid(
-  ctx,
-  x,
-  y,
-  angle,
-  radius,
-  lineWidth = 2,
-  strokeStyle = "white",
-  fillStyle = "black"
-) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle * DEG2RAD);
-  ctx.fillStyle = fillStyle;
-  ctx.strokeStyle = strokeStyle;
-  ctx.lineWidth = lineWidth;
-  ctx.beginPath();
-  ctx.roundRect(-radius, -radius, radius * 2, radius * 2, radius / 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
 }

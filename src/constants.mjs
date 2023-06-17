@@ -28,7 +28,7 @@ export let asteroid_levels = 3;
 export let asteroid_sizes = [
   [72, 112],
   [48, 64],
-  [16, 32],
+  [24, 36],
 ];
 let levels_by_difficulty = {
   easy: {
