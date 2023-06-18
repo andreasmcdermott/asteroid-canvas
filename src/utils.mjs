@@ -53,6 +53,148 @@ export class ImageAsset {
   }
 }
 
+export class GuiBarImage {
+  constructor([lx, ly, lw, lh], [mx, my, mw, mh], [rx, ry, rw, rh]) {
+    this.bs = lw;
+    this.topleft = new ImageAsset("ui", lx, ly, lw, this.bs);
+    this.midleft = new ImageAsset("ui", lx, ly + this.bs, lw, lh - 2 * this.bs);
+    this.bottomleft = new ImageAsset("ui", lx, ly + lh - this.bs, lw, this.bs);
+    this.topmid = new ImageAsset("ui", mx, my, mw, this.bs);
+    this.midmid = new ImageAsset("ui", mx, my + this.bs, mw, mh - 2 * this.bs);
+    this.bottommid = new ImageAsset("ui", mx, my + mh - this.bs, mw, this.bs);
+    this.topright = new ImageAsset("ui", rx, ry, rw, this.bs);
+    this.midright = new ImageAsset(
+      "ui",
+      rx,
+      ry + this.bs,
+      rw,
+      rh - 2 * this.bs
+    );
+    this.bottomright = new ImageAsset("ui", rx, ry + rh - this.bs, rw, this.bs);
+  }
+
+  draw(gameState, x, y, w, h) {
+    w = Math.max(w, this.bs * 2);
+    this.topleft.draw(gameState, x, y, this.bs, this.bs);
+    this.midleft.draw(gameState, x, y + this.bs, this.bs, h - this.bs * 2);
+    this.bottomleft.draw(gameState, x, y + h - this.bs, this.bs, this.bs);
+    this.topmid.draw(gameState, x + this.bs, y, w - 2 * this.bs, this.bs);
+    this.midmid.draw(
+      gameState,
+      x + this.bs,
+      y + this.bs,
+      w - 2 * this.bs,
+      h - 2 * this.bs
+    );
+    this.bottommid.draw(
+      gameState,
+      x + this.bs,
+      y + h - this.bs,
+      w - 2 * this.bs,
+      this.bs
+    );
+    this.topright.draw(gameState, x + w - this.bs, y, this.bs, this.bs);
+    this.midright.draw(
+      gameState,
+      x + w - this.bs,
+      y + this.bs,
+      this.bs,
+      h - this.bs * 2
+    );
+    this.bottomright.draw(
+      gameState,
+      x + w - this.bs,
+      y + h - this.bs,
+      this.bs,
+      this.bs
+    );
+  }
+}
+
+export class GuiBackgroundImage extends ImageAsset {
+  constructor(x, y, w, h, bw, bh) {
+    super("ui", x, y, w, h, 0);
+    this.bw = bw;
+    this.bh = bh;
+  }
+
+  _drawCorner(gameState, ox, oy, x, y) {
+    gameState.ctx.drawImage(
+      gameState.assets[this.name],
+      this.x + ox,
+      this.y + oy,
+      this.bw,
+      this.bh,
+      x,
+      y,
+      this.bw,
+      this.bh
+    );
+  }
+  _drawVerticalSide(gameState, ox, x, y, h) {
+    gameState.ctx.drawImage(
+      gameState.assets[this.name],
+      this.x + ox,
+      this.y + this.bh,
+      this.bw,
+      this.bh,
+      x,
+      y + this.bh,
+      this.bw,
+      h - this.bh * 2
+    );
+  }
+
+  _drawHorizontalSide(gameState, oy, x, y, w) {
+    gameState.ctx.drawImage(
+      gameState.assets[this.name],
+      this.x + this.bw,
+      this.y + oy,
+      this.bw,
+      this.bh,
+      x + this.bw,
+      y,
+      w - this.bw * 2,
+      this.bh
+    );
+  }
+
+  draw(gameState, x, y, w, h) {
+    this._drawCorner(gameState, 0, 0, x, y); // Top Left
+    this._drawCorner(gameState, this.w - this.bw, 0, x + w - this.bw, y); // Top Right
+    this._drawCorner(gameState, 0, this.h - this.bh, x, y + h - this.bh); // Bottom Left
+    this._drawCorner(
+      gameState,
+      this.w - this.bw,
+      this.h - this.bh,
+      x + w - this.bw,
+      y + h - this.bh
+    ); // Bottom Right
+    this._drawVerticalSide(gameState, 0, x, y, h); // Left
+    this._drawVerticalSide(gameState, this.w - this.bw, x + w - this.bw, y, h); // Right
+    this._drawHorizontalSide(gameState, 0, x, y, w); // Top
+    this._drawHorizontalSide(
+      gameState,
+      this.h - this.bh,
+      x,
+      y + h - this.bh,
+      w
+    ); // Bottom
+    // Middle
+    gameState.ctx.drawImage(
+      gameState.assets[this.name],
+      this.x + this.bw,
+      this.y + this.bh,
+      this.bw,
+      this.bh,
+      x + this.bw,
+      y + this.bh,
+      w - this.bw * 2,
+      h - this.bh * 2
+    );
+  }
+}
+
 export class SpriteSheetImage extends ImageAsset {
   constructor(x, y, w, h = w, rot = 0) {
     super("tilesheet", x, y, w, h, rot);

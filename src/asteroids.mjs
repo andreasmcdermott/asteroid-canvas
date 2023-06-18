@@ -1,4 +1,4 @@
-import { asteroid_levels } from "./constants.mjs";
+import { asteroid_levels, max_lives } from "./constants.mjs";
 import { Entity } from "./entities.mjs";
 import { particle } from "./particles.mjs";
 import {
@@ -25,7 +25,7 @@ export class Asteroid extends Entity {
   ];
   static small = [
     new SpriteSheetImage(400, 448, 64),
-    new SpriteSheetImage(216, 192, 64),
+    new SpriteSheetImage(217, 193, 63),
   ];
 
   constructor() {
@@ -42,7 +42,7 @@ export class Asteroid extends Entity {
     super.activate(gameState, x, y);
     let settings = gameState.settings;
     this.level = level;
-    this.radius = rnd(...settings.asteroid_sizes[level]) * 0.5;
+    this.radius = Math.floor(rnd(...settings.asteroid_sizes[level]) * 0.5);
     this.img = (
       this.level === 0
         ? Asteroid.large
@@ -64,7 +64,7 @@ export class Asteroid extends Entity {
       10 * (asteroid_levels - this.level) * gameState.settings.points_modifier;
     if (Math.floor(gameState.points / 5000) > gameState.last_points_payed) {
       gameState.last_points_payed += 1;
-      gameState.player.lives = clampMax(gameState.player.lives + 1, 5);
+      gameState.player.lives = clampMax(gameState.player.lives + 1, max_lives);
     }
     gameState.screen_shake = 50 * (asteroid_levels - this.level);
     particle(gameState, 20 * (asteroid_levels - this.level), {

@@ -13,8 +13,10 @@ export class Star extends Entity {
   activate(gameState, x, y, r) {
     super.activate(gameState, x, y);
     this.r = r;
+    this.alpha = rnd(0.5, 1);
   }
   draw(ctx, gameState) {
+    ctx.globalAlpha = this.alpha;
     let img = this.r >= 7 ? Star.large : Star.small;
     img.draw(
       gameState,
@@ -23,6 +25,7 @@ export class Star extends Entity {
       this.r * 2,
       this.r * 2
     );
+    ctx.globalAlpha = 1;
   }
 }
 
@@ -31,9 +34,9 @@ export function initStars(gameState) {
   for (let i = 0; i < num_stars; ++i) {
     gameState.stars.push(
       gameState,
-      rnd(gameState.win.w),
-      rnd(gameState.win.h),
-      rnd(2, 9)
+      Math.floor(rnd(gameState.win.w - 64)),
+      Math.floor(rnd(64, gameState.win.h - 64)),
+      Math.floor(rnd(2, 9))
     );
   }
 }

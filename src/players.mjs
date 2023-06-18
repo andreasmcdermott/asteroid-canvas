@@ -13,8 +13,11 @@ import {
   rnd,
   keydown,
   SpriteSheetImage,
+  GuiBackgroundImage,
+  GuiBarImage,
 } from "./utils.mjs";
 import { particle } from "./particles.mjs";
+import { max_lives } from "./constants.mjs";
 
 let player_acc = 0.0006;
 let player_max_speed = 0.3;
@@ -25,8 +28,24 @@ let restart_cooldown = 500;
 
 export class Player extends Entity {
   static ship = new SpriteSheetImage(305, 384, 94, 96, 90);
-  static shield = new ImageAsset("shield", 0, 0, 512, 512);
   static thrust = new SpriteSheetImage(610, 0, 62, 126, 90);
+  static bg = new GuiBackgroundImage(100, 200, 99, 100, 20, 20);
+  static barbg = new GuiBarImage(
+    [400, 182, 6, 26],
+    [386, 314, 12, 26],
+    [400, 208, 6, 26]
+  );
+  static bar = new GuiBarImage(
+    [402, 314, 6, 26],
+    [402, 236, 12, 26],
+    [402, 366, 6, 26]
+  );
+  static barred = new GuiBarImage(
+    [400, 130, 6, 26],
+    [388, 340, 12, 26],
+    [400, 156, 6, 26]
+  );
+  static shield = new ImageAsset("shield", 0, 0, 512, 512);
 
   constructor() {
     super();
@@ -121,50 +140,63 @@ export class Player extends Entity {
   }
 
   drawGui(ctx, gameState) {
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgb(25, 255, 25)";
-    ctx.fillStyle =
-      this.shield_charge <= 0
-        ? `rgba(255, 25, 25, ${
-            this.shield_recharging
-              ? Math.sin(
-                  (this.shield_cooldown_timer /
-                    gameState.settings.shield_discharge_cooldown) *
-                    PI *
-                    32
-                )
-              : 0.5
-          })`
-        : `rgba(25, 255, 25, 0.5)`;
-    ctx.strokeRect(15, 15, 200, 20);
-    ctx.fillRect(
-      17,
-      17,
-      196 *
-        (this.shield_charge <= 0
-          ? 1
-          : clampMin(
-              this.shield_charge / gameState.settings.max_shield_charge
-            )),
-      16
-    );
+    let barw = Math.max(gameState.win.w * 0.2, 200);
+    let shipw = (this.w / 3 + 10) * max_lives;
 
+    // Background
+    Player.bg.draw(gameState, -20, -20, barw + shipw + 60, 64);
+
+    // Shield
+    let alpha = 1;
+    let fill =
+      this.shield_charge <= 0
+        ? 1
+        : clampMin(this.shield_charge / gameState.settings.max_shield_charge);
+    if (this.shield_charge <= 0) {
+      if (this.shield_recharging)
+        alpha = Math.sin(
+          (this.shield_cooldown_timer /
+            gameState.settings.shield_discharge_cooldown) *
+            PI *
+            3
+        );
+      else alpha = 0.75;
+    }
+    ctx.globalAlpha = alpha;
+    Player.barbg.draw(gameState, 10, 10, barw, 20);
+    (this.shield_charge <= 0 ? Player.barred : Player.bar).draw(
+      gameState,
+      10,
+      10,
+      barw * fill,
+      20
+    );
+    ctx.globalAlpha = 1;
+
+    // Lives
     let i = 0;
     for (i; i < this.lives; ++i) {
       ctx.save();
-      ctx.translate(250 + i * (this.w / 2 + 10), 10);
+      ctx.translate(barw + 30 + i * (this.w / 3 + 10), 10);
       ctx.rotate(-90 * DEG2RAD);
-      Player.ship.draw(gameState, 0, 0, this.w / 2, this.h / 2);
+      Player.ship.draw(gameState, 0, 0, this.w / 3, this.h / 3);
       ctx.restore();
     }
 
+    // Score Background
+    let text = `Score: ${Math.round(gameState.points).toLocaleString("en-US")}`;
+    ctx.font = "18px kenvectorfuture";
+    let tsize = ctx.measureText(text);
+    Player.bg.draw(
+      gameState,
+      gameState.win.w - tsize.width - 60,
+      -20,
+      tsize.width + 90,
+      64
+    );
     ctx.fillStyle = "white";
     ctx.textAlign = "right";
-    ctx.fillText(
-      `Score: ${Math.round(gameState.points).toLocaleString("en-US")}`,
-      gameState.win.w - 10,
-      16
-    );
+    ctx.fillText(text, gameState.win.w - 20, 16);
   }
 
   draw(ctx, gameState) {
@@ -200,7 +232,9 @@ export class Player extends Entity {
       }
     }
 
-    if (gameState.screen === "play") this.drawGui(ctx, gameState);
+    if (gameState.screen === "play") {
+    }
+    this.drawGui(ctx, gameState);
   }
 
   update(dt, gameState) {
