@@ -16,6 +16,8 @@ import {
   drawLines,
   drawOverlay,
   drawText,
+  measureText,
+  padding,
 } from "./gui.mjs";
 
 let screens = { play, menu, pause, gameOver, upgrade };
@@ -289,11 +291,14 @@ function menu(dt, gameState) {
     }
   }
 
-  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.fillRect(0, 0, win.w, win.h);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "white";
+  drawOverlay(gameState);
+  drawBg(
+    gameState,
+    gameState.win.w / 4,
+    gameState.win.h / 3,
+    (gameState.win.w / 4) * 3,
+    (gameState.win.h / 4) * 3
+  );
   drawLines(
     gameState,
     [
@@ -305,32 +310,43 @@ function menu(dt, gameState) {
   );
 
   if (gameState.menu_screen === "help") {
-    ctx.font = "16px kenvectorfuture";
-    ctx.fillStyle = "white";
-    ctx.fillText(
-      "Shoot: Left Mouse Button / Space / Period",
-      win.w / 2,
-      win.h / 2 - 40
+    drawLines(
+      gameState,
+      [
+        ["Shoot: Left Mouse Button / Space / Period", "m"],
+        ["Shield: Right Mouse Button / Shift / Comma", "m"],
+        ["Thruster: Up / W", "m"],
+        ["Turn: Left|Right / A|D", "m"],
+      ],
+      gameState.win.w / 2,
+      (gameState.win.h / 4) * 2.4,
+      "center",
+      "middle",
+      2
     );
-    ctx.fillText(
-      "Shield: Right Mouse Button / Shift / Comma",
+    drawText(
+      gameState,
+      "Press any key to go back ",
       win.w / 2,
-      win.h / 2
+      (win.h / 4) * 3 - 20,
+      "l",
+      "center",
+      "bottom"
     );
-    ctx.fillText("Thruster: Up / W", win.w / 2, win.h / 2 + 40);
-    ctx.fillText("Turn: Left|Right / A|D", win.w / 2, win.h / 2 + 80);
-
-    ctx.font = "22px kenvectorfuture";
-    ctx.fillText("Press any key to go back ", win.w / 2, win.h / 2 + 180);
   } else {
-    ctx.font = "22px kenvectorfuture";
     gameState.menu_mouse_active = -1;
+    let item_height = 46;
+    let item_height_with_space = 56;
+    let start =
+      (win.h / 4) * 3 -
+      (gameState.menu_items.length - 1) * item_height_with_space -
+      item_height;
     for (let i = 0; i < gameState.menu_items.length; ++i) {
-      let size = ctx.measureText(gameState.menu_items[i]);
-      let left = win.w / 2 - size.actualBoundingBoxLeft - 30;
-      let top = win.h / 2 + 60 * i - 20;
-      let width = size.width + 60;
-      let height = 40;
+      let tw = measureText(gameState, gameState.menu_items[i]);
+      let left = win.w / 2 - tw / 2 - padding;
+      let top = start + item_height_with_space * i - padding;
+      let width = tw + padding * 2;
+      let height = item_height;
       let right = left + width;
       let bottom = top + height;
 
@@ -351,17 +367,16 @@ function menu(dt, gameState) {
           ? gameState.menu_mouse_active === i
           : gameState.menu_keyboard_active === i
       ) {
-        ctx.fillStyle = "rgba(255, 255, 255, 0.33)";
-        ctx.strokeStyle = "skyblue";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect(left, top, width, height, height / 5);
-        ctx.stroke();
-        ctx.fill();
+        drawBg(gameState, left, top, right, bottom);
       }
 
-      ctx.fillStyle = "white";
-      ctx.fillText(gameState.menu_items[i], win.w / 2, win.h / 2 + 60 * i);
+      drawText(
+        gameState,
+        gameState.menu_items[i],
+        win.w / 2,
+        start + item_height_with_space * i,
+        "m"
+      );
     }
   }
 }
@@ -369,20 +384,22 @@ function menu(dt, gameState) {
 function upgrade(dt, gameState) {
   let { ctx, win } = gameState;
 
-  drawOverlay(gameState, 0, 0, win.w, win.h);
+  drawOverlay(gameState);
   drawBg(
     gameState,
     win.w / 6,
-    win.h / 3 - 40,
+    win.h / 3 - padding,
     (win.w / 6) * 5,
-    win.h / 2 + win.w / 6 + 40
+    win.h / 2 + win.w / 6 + padding
   );
   drawText(
     gameState,
     `Level ${gameState.level + 1} Completed!`,
     win.w / 2,
     win.h / 3,
-    "l"
+    "l",
+    "center",
+    "top"
   );
 
   if (gameState.screen_transition > 0) {
@@ -449,7 +466,15 @@ function upgrade(dt, gameState) {
     }
   }
 
-  drawText(gameState, "Pick Your Upgrade:", win.w / 2, win.h / 3 + 60, "m");
+  drawText(
+    gameState,
+    "Pick Your Upgrade:",
+    win.w / 2,
+    win.h / 3 + 60,
+    "m",
+    "center",
+    "middle"
+  );
 
   let boxSize = win.w / 6;
   let boxTop = win.h / 2;
@@ -572,16 +597,26 @@ function gameOver(dt, gameState) {
     return;
   }
 
-  drawOverlay(gameState, 0, 0, win.w, win.h);
-  drawBg(gameState, win.w / 4, win.h / 3 - 40, (win.w / 4) * 3, win.h / 2 + 40);
+  drawOverlay(gameState);
+  drawBg(gameState, win.w / 4, win.h / 3, (win.w / 4) * 3, win.h / 2 + padding);
   drawText(
     gameState,
     "Game Over",
     gameState.win.w / 2,
     gameState.win.h / 3,
-    "xl"
+    "xl",
+    "center",
+    "top"
   );
-  drawText(gameState, "Press Enter to Restart", win.w / 2, win.h / 2, "l");
+  drawText(
+    gameState,
+    "Press Enter to Restart",
+    win.w / 2,
+    win.h / 2,
+    "l",
+    "center",
+    "bottom"
+  );
 
   if (keypressed(gameState, "Enter")) {
     gameState.level = -1;
@@ -602,10 +637,26 @@ function pause(dt, gameState) {
   gameState.player.draw(ctx, gameState);
   gameState.particles.drawAll(ctx, gameState);
 
-  drawOverlay(gameState, 0, 0, win.w, win.h);
-  drawBg(gameState, win.w / 4, win.h / 3 - 40, (win.w / 4) * 3, win.h / 2 + 40);
-  drawText(gameState, "Paused", gameState.win.w / 2, gameState.win.h / 3, "xl");
-  drawText(gameState, "Press Escape to Continue", win.w / 2, win.h / 2, "l");
+  drawOverlay(gameState);
+  drawBg(gameState, win.w / 4, win.h / 3, (win.w / 4) * 3, win.h / 2 + padding);
+  drawText(
+    gameState,
+    "Paused",
+    gameState.win.w / 2,
+    gameState.win.h / 3,
+    "xl",
+    "center",
+    "top"
+  );
+  drawText(
+    gameState,
+    "Press Escape to Continue",
+    win.w / 2,
+    win.h / 2,
+    "l",
+    "center",
+    "bottom"
+  );
 }
 
 function add_screen_shake(ctx, gameState) {
