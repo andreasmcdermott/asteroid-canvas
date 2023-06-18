@@ -195,6 +195,12 @@ export class GuiBackgroundImage extends ImageAsset {
   }
 }
 
+export class UiSpriteSheetImage extends ImageAsset {
+  constructor(x, y, w, h = w, rot = 0) {
+    super("ui", x, y, w, h, rot);
+  }
+}
+
 export class SpriteSheetImage extends ImageAsset {
   constructor(x, y, w, h = w, rot = 0) {
     super("tilesheet", x, y, w, h, rot);

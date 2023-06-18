@@ -10,6 +10,13 @@ import {
   getSettings,
   max_upgrade_levels,
 } from "./constants.mjs";
+import {
+  drawBg,
+  drawCheckbox,
+  drawLines,
+  drawOverlay,
+  drawText,
+} from "./gui.mjs";
 
 let screens = { play, menu, pause, gameOver, upgrade };
 
@@ -76,22 +83,6 @@ export function onResize(gameState) {
   }
 }
 
-function initMenu(gameState) {
-  gameState.menu_items = ["Easy", "Medium", "Hard", "Help"];
-  gameState.menu_keyboard_active = 0;
-  gameState.menu_mouse_over = -1;
-  gameState.menu_screen = "";
-  gameState.settings = getSettings("easy", 0);
-  for (let i = 0; i < 6; ++i) {
-    gameState.asteroids.push(
-      gameState,
-      rnd(gameState.win.w),
-      rnd(gameState.win.h),
-      i < 3 ? 0 : i < 5 ? 1 : 2
-    );
-  }
-}
-
 export function gameLoop(dt, gameState) {
   let { ctx, win } = gameState;
   let screen = screens[gameState.screen];
@@ -124,426 +115,6 @@ export function gameLoop(dt, gameState) {
       win.h - 55
     );
   }
-}
-
-function upgrade(dt, gameState) {
-  let { ctx, win } = gameState;
-
-  if (gameState.screen_transition > 0) {
-    gameState.particles.updateAll(dt, gameState);
-    gameState.projectiles.updateAll(dt, gameState);
-    gameState.player.update(dt, gameState);
-
-    gameState.particles.drawAll(ctx, gameState);
-    gameState.projectiles.drawAll(ctx, gameState);
-    gameState.player.draw(ctx, gameState);
-
-    gameState.screen_transition -= dt;
-    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-    ctx.fillRect(0, 0, win.w, win.h);
-    _drawGameTitle(ctx, gameState);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "white";
-    ctx.font = "22px kenvectorfuture";
-    ctx.fillText(
-      `Level ${gameState.level + 1} Completed!`,
-      win.w / 2,
-      win.h / 2 - 80
-    );
-    return;
-  } else {
-    if (
-      gameState.upgrades.shield_charge >= max_upgrade_levels &&
-      gameState.upgrades.fire_rate >= max_upgrade_levels &&
-      gameState.upgrades.laser_speed >= max_upgrade_levels
-    ) {
-      gotoNextLevel(gameState);
-      gameState.screen = "play";
-      return;
-    }
-  }
-
-  let actions = {
-    Prev: keypressed(gameState, "ArrowLeft") || keypressed(gameState, "a"),
-    Next: keypressed(gameState, "ArrowRight") || keypressed(gameState, "d"),
-    SelectKeyboard:
-      keypressed(gameState, "Enter") || keypressed(gameState, " "),
-    SelectMouse: keypressed(gameState, "Mouse0"),
-  };
-
-  if (actions.Prev) {
-    if (gameState.mouse_active && gameState.upgrade_mouse_active >= 0)
-      gameState.upgrade_keyboard_active = gameState.upgrade_mouse_active;
-
-    gameState.mouse_active = false;
-    gameState.upgrade_keyboard_active = clampMin(
-      gameState.upgrade_keyboard_active - 1
-    );
-  } else if (actions.Next) {
-    if (gameState.mouse_active && gameState.upgrade_mouse_active >= 0)
-      gameState.upgrade_keyboard_active = gameState.upgrade_mouse_active;
-
-    gameState.mouse_active = false;
-    gameState.upgrade_keyboard_active = clampMax(
-      gameState.upgrade_keyboard_active + 1,
-      available_upgrades.length - 1
-    );
-  } else if (
-    actions.SelectKeyboard ||
-    (actions.SelectMouse && gameState.upgrade_mouse_active >= 0)
-  ) {
-    let selected =
-      available_upgrades[
-        actions.SelectKeyboard
-          ? gameState.upgrade_keyboard_active
-          : gameState.upgrade_mouse_active
-      ];
-    if (gameState.upgrades[selected.type] < max_upgrade_levels) {
-      gameState.upgrades[selected.type] += 1;
-      gotoNextLevel(gameState);
-      gameState.screen = "play";
-    }
-  }
-
-  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.fillRect(0, 0, win.w, win.h);
-  _drawGameTitle(ctx, gameState);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "white";
-  ctx.font = "22px kenvectorfuture";
-  ctx.fillText(
-    `Level ${gameState.level + 1} Completed!`,
-    win.w / 2,
-    win.h / 2 - 80
-  );
-
-  ctx.font = "18px kenvectorfuture";
-  ctx.fillText(`Pick your Upgrade:`, win.w / 2, win.h / 2 - 20);
-
-  let boxSize = win.w / 6;
-  let boxTop = win.h / 2 + 50;
-
-  gameState.upgrade_mouse_active = -1;
-  for (let i = 0; i < available_upgrades.length; ++i) {
-    let upgrade = available_upgrades[i];
-    let boxLeft = win.w / 2 - (win.w / 6 + 20) * 1.5 + (win.w / 6 + 20) * i;
-
-    if (gameState.mouse_active) {
-      let { MouseX, MouseY } = gameState.input;
-      if (
-        MouseX >= boxLeft &&
-        MouseX <= boxLeft + boxSize &&
-        MouseY >= boxTop &&
-        MouseY <= boxTop + boxSize
-      ) {
-        gameState.upgrade_mouse_active = i;
-      }
-    }
-
-    let isActive = gameState.mouse_active
-      ? gameState.upgrade_mouse_active === i
-      : gameState.upgrade_keyboard_active === i;
-
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = isActive ? "skyblue" : "white";
-    ctx.fillStyle = `rgba(255, 255, 255, ${isActive ? 0.33 : 0.1})`;
-    ctx.beginPath();
-    ctx.roundRect(boxLeft, boxTop, boxSize, boxSize, boxSize / 5);
-    ctx.stroke();
-    ctx.fill();
-    ctx.fillStyle = "white";
-    ctx.fillText(upgrade.name, boxLeft + boxSize / 2, boxTop + boxSize / 4);
-
-    ctx.strokeStyle = "white";
-    ctx.fillStyle = "skyblue";
-    ctx.lineWidth = 1;
-
-    let leftMost =
-      boxLeft +
-      boxSize / 2 +
-      (boxSize / 15 + boxSize / 30) *
-        ((max_upgrade_levels - 1) / 2 - (max_upgrade_levels - 1));
-    for (let i = 0; i < max_upgrade_levels; ++i) {
-      ctx.beginPath();
-      ctx.ellipse(
-        leftMost + (boxSize / 15 + boxSize / 30) * i,
-        boxTop + boxSize - boxSize / 15,
-        boxSize / 30,
-        boxSize / 30,
-        0,
-        0,
-        PI2
-      );
-
-      ctx.stroke();
-      if (gameState.upgrades[upgrade.type] > i) ctx.fill();
-    }
-
-    switch (upgrade.type) {
-      case "fire_rate":
-        drawLaser(
-          gameState,
-          boxLeft + boxSize / 2 - 40,
-          boxTop + boxSize / 2 + 60,
-          10,
-          30,
-          45
-        );
-        drawLaser(
-          gameState,
-          boxLeft + boxSize / 2 - 5,
-          boxTop + boxSize / 2 + 25,
-          10,
-          30,
-          45
-        );
-        drawLaser(
-          gameState,
-          boxLeft + boxSize / 2 + 30,
-          boxTop + boxSize / 2 - 10,
-          10,
-          30,
-          45
-        );
-        break;
-      case "laser_speed":
-        drawLaser(
-          gameState,
-          boxLeft + boxSize / 2 - 10,
-          boxTop + boxSize / 2 + 35,
-          20,
-          100,
-          45
-        );
-        break;
-      case "shield_charge":
-        drawShield(
-          gameState,
-          boxLeft + boxSize / 2,
-          boxTop + boxSize / 2 + 25,
-          0,
-          50
-        );
-        break;
-    }
-  }
-}
-
-function pause(dt, gameState) {
-  let { ctx, win } = gameState;
-
-  if (keypressed(gameState, "Escape")) {
-    gameState.screen = "play";
-    return;
-  }
-
-  gameState.projectiles.drawAll(ctx, gameState);
-  gameState.asteroids.drawAll(ctx, gameState);
-  gameState.player.draw(ctx, gameState);
-  gameState.particles.drawAll(ctx, gameState);
-
-  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.fillRect(0, 0, win.w, win.h);
-  _drawGameTitle(ctx, gameState);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "white";
-  ctx.font = "22px kenvectorfuture";
-  ctx.fillText("Press Escape to Resume", win.w / 2, win.h / 2 - 60);
-}
-
-function menu(dt, gameState) {
-  let { ctx, win } = gameState;
-
-  gameState.asteroids.updateAll(dt, gameState);
-  gameState.asteroids.drawAll(ctx, gameState);
-
-  let actions = {
-    SelectKeyboard:
-      keypressed(gameState, "Enter") || keypressed(gameState, " "),
-    SelectMouse: keypressed(gameState, "Mouse0"),
-    Up: keypressed(gameState, "ArrowUp") || keypressed(gameState, "w"),
-    Down: keypressed(gameState, "ArrowDown") || keypressed(gameState, "s"),
-  };
-
-  if (actions.Up) {
-    if (gameState.mouse_active && gameState.menu_mouse_active >= 0)
-      gameState.menu_keyboard_active = gameState.menu_mouse_active;
-
-    gameState.mouse_active = false;
-    gameState.menu_keyboard_active = clampMin(
-      gameState.menu_keyboard_active - 1,
-      0
-    );
-  } else if (actions.Down) {
-    if (gameState.mouse_active && gameState.menu_mouse_active >= 0)
-      gameState.menu_keyboard_active = gameState.menu_mouse_active;
-
-    gameState.mouse_active = false;
-    gameState.menu_keyboard_active = clampMax(
-      gameState.menu_keyboard_active + 1,
-      gameState.menu_items.length - 1
-    );
-  } else if (
-    actions.SelectKeyboard ||
-    (actions.SelectMouse && gameState.menu_mouse_active >= 0)
-  ) {
-    if (gameState.menu_screen === "help") {
-      gameState.menu_screen = "";
-    } else {
-      let active = actions.SelectKeyboard
-        ? gameState.menu_keyboard_active
-        : gameState.menu_mouse_active;
-      if (gameState.menu_items[active] === "Help") {
-        gameState.menu_screen = "help";
-      } else {
-        gameState.screen = "play";
-        gameState.level = -1;
-        gameState.difficulty = gameState.menu_items[active].toLowerCase();
-      }
-    }
-  }
-
-  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.fillRect(0, 0, win.w, win.h);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "white";
-  _drawGameTitle(ctx, gameState);
-
-  if (gameState.menu_screen === "help") {
-    ctx.font = "16px kenvectorfuture";
-    ctx.fillStyle = "white";
-    ctx.fillText(
-      "Shoot: Left Mouse Button / Space / Period",
-      win.w / 2,
-      win.h / 2 - 40
-    );
-    ctx.fillText(
-      "Shield: Right Mouse Button / Shift / Comma",
-      win.w / 2,
-      win.h / 2
-    );
-    ctx.fillText("Thruster: Up / W", win.w / 2, win.h / 2 + 40);
-    ctx.fillText("Turn: Left|Right / A|D", win.w / 2, win.h / 2 + 80);
-
-    ctx.font = "22px kenvectorfuture";
-    ctx.fillText("Press any key to go back ", win.w / 2, win.h / 2 + 180);
-  } else {
-    ctx.font = "22px kenvectorfuture";
-    gameState.menu_mouse_active = -1;
-    for (let i = 0; i < gameState.menu_items.length; ++i) {
-      let size = ctx.measureText(gameState.menu_items[i]);
-      let left = win.w / 2 - size.actualBoundingBoxLeft - 30;
-      let top = win.h / 2 + 60 * i - 20;
-      let width = size.width + 60;
-      let height = 40;
-      let right = left + width;
-      let bottom = top + height;
-
-      if (gameState.mouse_active) {
-        let { MouseX, MouseY } = gameState.input;
-        if (
-          MouseX >= left &&
-          MouseX <= right &&
-          MouseY >= top &&
-          MouseY <= bottom
-        ) {
-          gameState.menu_mouse_active = i;
-        }
-      }
-
-      if (
-        gameState.mouse_active
-          ? gameState.menu_mouse_active === i
-          : gameState.menu_keyboard_active === i
-      ) {
-        ctx.fillStyle = "rgba(255, 255, 255, 0.33)";
-        ctx.strokeStyle = "skyblue";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect(left, top, width, height, height / 5);
-        ctx.stroke();
-        ctx.fill();
-      }
-
-      ctx.fillStyle = "white";
-      ctx.fillText(gameState.menu_items[i], win.w / 2, win.h / 2 + 60 * i);
-    }
-  }
-}
-
-function _drawGameTitle(ctx, gameState) {
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "white";
-  ctx.font = "80px kenvectorfuture";
-  ctx.fillText("Asteroids", gameState.win.w / 2, gameState.win.h / 3);
-  ctx.font = "18px kenvectorfuture";
-  ctx.fillText(
-    "By Andreas McDermott",
-    gameState.win.w / 2,
-    gameState.win.h / 3 + 50
-  );
-}
-
-function gameOver(dt, gameState) {
-  let { ctx, win } = gameState;
-
-  gameState.projectiles.updateAll(dt, gameState);
-  gameState.asteroids.updateAll(dt, gameState);
-  gameState.particles.updateAll(dt, gameState);
-
-  let has_screen_shake = add_screen_shake(ctx, gameState);
-
-  gameState.projectiles.drawAll(ctx, gameState);
-  gameState.asteroids.drawAll(ctx, gameState);
-  gameState.particles.drawAll(ctx, gameState);
-
-  if (has_screen_shake) clear_screen_shake(ctx);
-
-  if (gameState.screen_transition > 0) {
-    gameState.screen_transition -= dt;
-    return;
-  }
-
-  ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-  ctx.fillRect(0, 0, win.w, win.h);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "white";
-  ctx.font = "80px kenvectorfuture";
-  ctx.fillText("Game Over", win.w / 2, win.h / 2 - 50);
-  ctx.font = "30px kenvectorfuture";
-  ctx.fillText(
-    `Final Score: ${Math.round(gameState.points).toLocaleString("en-US")}`,
-    win.w / 2,
-    win.h / 2 + 50
-  );
-  ctx.font = "22px kenvectorfuture";
-  ctx.fillText("Press Enter to Restart", win.w / 2, win.h / 2 + 160);
-  if (keypressed(gameState, "Enter")) {
-    gameState.level = -1;
-    gameState.screen = "play";
-  }
-}
-
-function add_screen_shake(ctx, gameState) {
-  if (gameState.screen_shake > 0) {
-    let strength = gameState.screen_shake / 10;
-    let ox = rnd(-strength, strength);
-    let oy = rnd(-strength, strength);
-    ctx.save();
-    ctx.translate(ox, oy);
-    return true;
-  }
-  return false;
-}
-
-function clear_screen_shake(ctx) {
-  ctx.restore();
 }
 
 function play(dt, gameState) {
@@ -648,4 +219,407 @@ function gotoNextLevel(gameState) {
       settings.asteroids[i]
     );
   }
+}
+
+function initMenu(gameState) {
+  gameState.menu_items = ["Easy", "Medium", "Hard", "Help"];
+  gameState.menu_keyboard_active = 0;
+  gameState.menu_mouse_over = -1;
+  gameState.menu_screen = "";
+  gameState.settings = getSettings("easy", 0);
+  for (let i = 0; i < 6; ++i) {
+    gameState.asteroids.push(
+      gameState,
+      rnd(gameState.win.w),
+      rnd(gameState.win.h),
+      i < 3 ? 0 : i < 5 ? 1 : 2
+    );
+  }
+}
+
+function menu(dt, gameState) {
+  let { ctx, win } = gameState;
+
+  gameState.asteroids.updateAll(dt, gameState);
+  gameState.asteroids.drawAll(ctx, gameState);
+
+  let actions = {
+    SelectKeyboard:
+      keypressed(gameState, "Enter") || keypressed(gameState, " "),
+    SelectMouse: keypressed(gameState, "Mouse0"),
+    Up: keypressed(gameState, "ArrowUp") || keypressed(gameState, "w"),
+    Down: keypressed(gameState, "ArrowDown") || keypressed(gameState, "s"),
+  };
+
+  if (actions.Up) {
+    if (gameState.mouse_active && gameState.menu_mouse_active >= 0)
+      gameState.menu_keyboard_active = gameState.menu_mouse_active;
+
+    gameState.mouse_active = false;
+    gameState.menu_keyboard_active = clampMin(
+      gameState.menu_keyboard_active - 1,
+      0
+    );
+  } else if (actions.Down) {
+    if (gameState.mouse_active && gameState.menu_mouse_active >= 0)
+      gameState.menu_keyboard_active = gameState.menu_mouse_active;
+
+    gameState.mouse_active = false;
+    gameState.menu_keyboard_active = clampMax(
+      gameState.menu_keyboard_active + 1,
+      gameState.menu_items.length - 1
+    );
+  } else if (
+    actions.SelectKeyboard ||
+    (actions.SelectMouse && gameState.menu_mouse_active >= 0)
+  ) {
+    if (gameState.menu_screen === "help") {
+      gameState.menu_screen = "";
+    } else {
+      let active = actions.SelectKeyboard
+        ? gameState.menu_keyboard_active
+        : gameState.menu_mouse_active;
+      if (gameState.menu_items[active] === "Help") {
+        gameState.menu_screen = "help";
+      } else {
+        gameState.screen = "play";
+        gameState.level = -1;
+        gameState.difficulty = gameState.menu_items[active].toLowerCase();
+      }
+    }
+  }
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+  ctx.fillRect(0, 0, win.w, win.h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "white";
+  drawLines(
+    gameState,
+    [
+      ["Asteroids", "xl"],
+      ["By Andreas McDermott", "m"],
+    ],
+    gameState.win.w / 2,
+    gameState.win.h / 3
+  );
+
+  if (gameState.menu_screen === "help") {
+    ctx.font = "16px kenvectorfuture";
+    ctx.fillStyle = "white";
+    ctx.fillText(
+      "Shoot: Left Mouse Button / Space / Period",
+      win.w / 2,
+      win.h / 2 - 40
+    );
+    ctx.fillText(
+      "Shield: Right Mouse Button / Shift / Comma",
+      win.w / 2,
+      win.h / 2
+    );
+    ctx.fillText("Thruster: Up / W", win.w / 2, win.h / 2 + 40);
+    ctx.fillText("Turn: Left|Right / A|D", win.w / 2, win.h / 2 + 80);
+
+    ctx.font = "22px kenvectorfuture";
+    ctx.fillText("Press any key to go back ", win.w / 2, win.h / 2 + 180);
+  } else {
+    ctx.font = "22px kenvectorfuture";
+    gameState.menu_mouse_active = -1;
+    for (let i = 0; i < gameState.menu_items.length; ++i) {
+      let size = ctx.measureText(gameState.menu_items[i]);
+      let left = win.w / 2 - size.actualBoundingBoxLeft - 30;
+      let top = win.h / 2 + 60 * i - 20;
+      let width = size.width + 60;
+      let height = 40;
+      let right = left + width;
+      let bottom = top + height;
+
+      if (gameState.mouse_active) {
+        let { MouseX, MouseY } = gameState.input;
+        if (
+          MouseX >= left &&
+          MouseX <= right &&
+          MouseY >= top &&
+          MouseY <= bottom
+        ) {
+          gameState.menu_mouse_active = i;
+        }
+      }
+
+      if (
+        gameState.mouse_active
+          ? gameState.menu_mouse_active === i
+          : gameState.menu_keyboard_active === i
+      ) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.33)";
+        ctx.strokeStyle = "skyblue";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(left, top, width, height, height / 5);
+        ctx.stroke();
+        ctx.fill();
+      }
+
+      ctx.fillStyle = "white";
+      ctx.fillText(gameState.menu_items[i], win.w / 2, win.h / 2 + 60 * i);
+    }
+  }
+}
+
+function upgrade(dt, gameState) {
+  let { ctx, win } = gameState;
+
+  drawOverlay(gameState, 0, 0, win.w, win.h);
+  drawBg(
+    gameState,
+    win.w / 6,
+    win.h / 3 - 40,
+    (win.w / 6) * 5,
+    win.h / 2 + win.w / 6 + 40
+  );
+  drawText(
+    gameState,
+    `Level ${gameState.level + 1} Completed!`,
+    win.w / 2,
+    win.h / 3,
+    "l"
+  );
+
+  if (gameState.screen_transition > 0) {
+    gameState.particles.updateAll(dt, gameState);
+    gameState.projectiles.updateAll(dt, gameState);
+    gameState.player.update(dt, gameState);
+
+    gameState.particles.drawAll(ctx, gameState);
+    gameState.projectiles.drawAll(ctx, gameState);
+    gameState.player.draw(ctx, gameState);
+
+    gameState.screen_transition -= dt;
+
+    return;
+  } else if (
+    gameState.upgrades.shield_charge >= max_upgrade_levels &&
+    gameState.upgrades.fire_rate >= max_upgrade_levels &&
+    gameState.upgrades.laser_speed >= max_upgrade_levels
+  ) {
+    gotoNextLevel(gameState);
+    gameState.screen = "play";
+    return;
+  }
+
+  let actions = {
+    Prev: keypressed(gameState, "ArrowLeft") || keypressed(gameState, "a"),
+    Next: keypressed(gameState, "ArrowRight") || keypressed(gameState, "d"),
+    SelectKeyboard:
+      keypressed(gameState, "Enter") || keypressed(gameState, " "),
+    SelectMouse: keypressed(gameState, "Mouse0"),
+  };
+
+  if (actions.Prev) {
+    if (gameState.mouse_active && gameState.upgrade_mouse_active >= 0)
+      gameState.upgrade_keyboard_active = gameState.upgrade_mouse_active;
+
+    gameState.mouse_active = false;
+    gameState.upgrade_keyboard_active = clampMin(
+      gameState.upgrade_keyboard_active - 1
+    );
+  } else if (actions.Next) {
+    if (gameState.mouse_active && gameState.upgrade_mouse_active >= 0)
+      gameState.upgrade_keyboard_active = gameState.upgrade_mouse_active;
+
+    gameState.mouse_active = false;
+    gameState.upgrade_keyboard_active = clampMax(
+      gameState.upgrade_keyboard_active + 1,
+      available_upgrades.length - 1
+    );
+  } else if (
+    actions.SelectKeyboard ||
+    (actions.SelectMouse && gameState.upgrade_mouse_active >= 0)
+  ) {
+    let selected =
+      available_upgrades[
+        actions.SelectKeyboard
+          ? gameState.upgrade_keyboard_active
+          : gameState.upgrade_mouse_active
+      ];
+    if (gameState.upgrades[selected.type] < max_upgrade_levels) {
+      gameState.upgrades[selected.type] += 1;
+      gotoNextLevel(gameState);
+      gameState.screen = "play";
+    }
+  }
+
+  drawText(gameState, "Pick Your Upgrade:", win.w / 2, win.h / 3 + 60, "m");
+
+  let boxSize = win.w / 6;
+  let boxTop = win.h / 2;
+
+  gameState.upgrade_mouse_active = -1;
+  for (let i = 0; i < available_upgrades.length; ++i) {
+    let upgrade = available_upgrades[i];
+    let boxLeft = win.w / 2 - (win.w / 6 + 15) * 1.5 + (win.w / 6 + 20) * i;
+
+    if (gameState.mouse_active) {
+      let { MouseX, MouseY } = gameState.input;
+      if (
+        MouseX >= boxLeft &&
+        MouseX <= boxLeft + boxSize &&
+        MouseY >= boxTop &&
+        MouseY <= boxTop + boxSize
+      ) {
+        gameState.upgrade_mouse_active = i;
+      }
+    }
+
+    let isActive = gameState.mouse_active
+      ? gameState.upgrade_mouse_active === i
+      : gameState.upgrade_keyboard_active === i;
+    let currUpgradeValue = gameState.upgrades[upgrade.type];
+    drawBg(
+      gameState,
+      boxLeft,
+      boxTop,
+      boxLeft + boxSize,
+      boxTop + boxSize,
+      isActive ? 1 : 0.5
+    );
+    drawText(gameState, upgrade.name, boxLeft + boxSize / 2, boxTop + 24, "m");
+
+    let leftMost =
+      boxLeft +
+      boxSize / 2 +
+      36 * ((max_upgrade_levels - 1) / 2 - (max_upgrade_levels - 1));
+    for (let i = 0; i < max_upgrade_levels; ++i) {
+      drawCheckbox(
+        gameState,
+        leftMost + 30 * i,
+        boxTop + boxSize - 36,
+        isActive && i === currUpgradeValue
+          ? "active"
+          : currUpgradeValue > i
+          ? "checked"
+          : "unchecked"
+      );
+    }
+
+    switch (upgrade.type) {
+      case "fire_rate":
+        drawLaser(
+          gameState,
+          boxLeft + boxSize / 2 + 30,
+          boxTop + boxSize / 2 - 30,
+          10,
+          30,
+          45
+        );
+        drawLaser(
+          gameState,
+          boxLeft + boxSize / 2,
+          boxTop + boxSize / 2,
+          10,
+          30,
+          45
+        );
+        drawLaser(
+          gameState,
+          boxLeft + boxSize / 2 - 30,
+          boxTop + boxSize / 2 + 30,
+          10,
+          30,
+          45
+        );
+        break;
+      case "laser_speed":
+        drawLaser(
+          gameState,
+          boxLeft + boxSize / 2,
+          boxTop + boxSize / 2,
+          20,
+          100,
+          45
+        );
+        break;
+      case "shield_charge":
+        drawShield(
+          gameState,
+          boxLeft + boxSize / 2,
+          boxTop + boxSize / 2,
+          0,
+          50
+        );
+        break;
+    }
+  }
+}
+
+function gameOver(dt, gameState) {
+  let { ctx, win } = gameState;
+
+  gameState.projectiles.updateAll(dt, gameState);
+  gameState.asteroids.updateAll(dt, gameState);
+  gameState.particles.updateAll(dt, gameState);
+
+  let has_screen_shake = add_screen_shake(ctx, gameState);
+
+  gameState.projectiles.drawAll(ctx, gameState);
+  gameState.asteroids.drawAll(ctx, gameState);
+  gameState.particles.drawAll(ctx, gameState);
+
+  if (has_screen_shake) clear_screen_shake(ctx);
+
+  if (gameState.screen_transition > 0) {
+    gameState.screen_transition -= dt;
+    return;
+  }
+
+  drawOverlay(gameState, 0, 0, win.w, win.h);
+  drawBg(gameState, win.w / 4, win.h / 3 - 40, (win.w / 4) * 3, win.h / 2 + 40);
+  drawText(
+    gameState,
+    "Game Over",
+    gameState.win.w / 2,
+    gameState.win.h / 3,
+    "xl"
+  );
+  drawText(gameState, "Press Enter to Restart", win.w / 2, win.h / 2, "l");
+
+  if (keypressed(gameState, "Enter")) {
+    gameState.level = -1;
+    gameState.screen = "play";
+  }
+}
+
+function pause(dt, gameState) {
+  let { ctx, win } = gameState;
+
+  if (keypressed(gameState, "Escape")) {
+    gameState.screen = "play";
+    return;
+  }
+
+  gameState.projectiles.drawAll(ctx, gameState);
+  gameState.asteroids.drawAll(ctx, gameState);
+  gameState.player.draw(ctx, gameState);
+  gameState.particles.drawAll(ctx, gameState);
+
+  drawOverlay(gameState, 0, 0, win.w, win.h);
+  drawBg(gameState, win.w / 4, win.h / 3 - 40, (win.w / 4) * 3, win.h / 2 + 40);
+  drawText(gameState, "Paused", gameState.win.w / 2, gameState.win.h / 3, "xl");
+  drawText(gameState, "Press Escape to Continue", win.w / 2, win.h / 2, "l");
+}
+
+function add_screen_shake(ctx, gameState) {
+  if (gameState.screen_shake > 0) {
+    let strength = gameState.screen_shake / 10;
+    let ox = rnd(-strength, strength);
+    let oy = rnd(-strength, strength);
+    ctx.save();
+    ctx.translate(ox, oy);
+    return true;
+  }
+  return false;
+}
+
+function clear_screen_shake(ctx) {
+  ctx.restore();
 }

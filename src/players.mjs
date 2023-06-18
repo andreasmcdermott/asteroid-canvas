@@ -18,6 +18,7 @@ import {
 } from "./utils.mjs";
 import { particle } from "./particles.mjs";
 import { max_lives } from "./constants.mjs";
+import { drawText, measureText } from "./gui.mjs";
 
 let player_acc = 0.0006;
 let player_max_speed = 0.3;
@@ -185,18 +186,9 @@ export class Player extends Entity {
 
     // Score Background
     let text = `Score: ${Math.round(gameState.points).toLocaleString("en-US")}`;
-    ctx.font = "18px kenvectorfuture";
-    let tsize = ctx.measureText(text);
-    Player.bg.draw(
-      gameState,
-      gameState.win.w - tsize.width - 60,
-      -20,
-      tsize.width + 90,
-      64
-    );
-    ctx.fillStyle = "white";
-    ctx.textAlign = "right";
-    ctx.fillText(text, gameState.win.w - 20, 16);
+    let tw = measureText(gameState, text, "m");
+    Player.bg.draw(gameState, gameState.win.w - tw - 60, -20, tw + 90, 64);
+    drawText(gameState, text, gameState.win.w - 20, 16, "m", "right");
   }
 
   draw(ctx, gameState) {
