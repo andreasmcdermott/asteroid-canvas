@@ -83,6 +83,8 @@ export class Asteroid extends Entity {
       ca1: 0,
       r0: [2, 5],
       r1: 0.1,
+      rot0: [0, 360],
+      rot1: [360, 720],
       delay: [0, 150],
       life: [1000, 3000],
     });
@@ -97,6 +99,8 @@ export class Asteroid extends Entity {
       ca1: 0,
       r0: 0,
       r1: this.radius * 3,
+      rot0: [-45, 45],
+      rot1: [-45, 45],
       style: "stroke",
       lineWidth: 4,
       delay: [0, 50],

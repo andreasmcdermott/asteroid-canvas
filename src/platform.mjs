@@ -84,6 +84,8 @@ function nextFrame(t) {
   lt = t;
   gameLoop(dt);
   gameState.lastInput = { ...gameState.input };
+  gameState.input.MouseX = 0;
+  gameState.input.MouseY = 0;
   requestAnimationFrame(nextFrame);
 }
 
@@ -131,8 +133,10 @@ function initEventListeners() {
   window.addEventListener(
     "mousemove",
     ({ movementX, movementY }) => {
-      gameState.input["MouseX"] = movementX;
-      gameState.input["MouseY"] = movementY;
+      if (gameState.has_mouse_lock) {
+        gameState.input["MouseX"] = movementX;
+        gameState.input["MouseY"] = movementY;
+      }
     },
     { passive: true }
   );
@@ -140,7 +144,9 @@ function initEventListeners() {
   window.addEventListener(
     "mousedown",
     (e) => {
-      gameState.input[`Mouse${e.button}`] = true;
+      if (gameState.has_mouse_lock) {
+        gameState.input[`Mouse${e.button}`] = true;
+      }
     },
     { passive: true }
   );
@@ -161,13 +167,17 @@ function initEventListeners() {
     "pointerlockchange",
     () => {
       gameState.has_mouse_lock = document.pointerLockElement === canvas;
+      if (gameState.has_mouse_lock) {
+        gameState.mx = gameState.win.w / 2;
+        gameState.my = gameState.win.h / 2;
+      }
     },
     { passive: true }
   );
 
   canvas.addEventListener("click", async () => {
     if (!document.pointerLockElement) {
-      await canvas.requestPointerLock({ unadjustedMovement: true });
+      await canvas.requestPointerLock({ unadjustedMovement: false });
     }
   });
 

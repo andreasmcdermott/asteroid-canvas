@@ -1,4 +1,4 @@
-import { lerp, rnd, Vec2, Rgba, PI2 } from "./utils.mjs";
+import { lerp, rnd, Vec2, Rgba, PI2, DEG2RAD } from "./utils.mjs";
 import { Entity } from "./entities.mjs";
 
 export class Particle extends Entity {
@@ -34,6 +34,8 @@ export class Particle extends Entity {
     c1a,
     r0,
     r1,
+    rot0,
+    rot1,
     delay,
     life,
     style,
@@ -49,11 +51,14 @@ export class Particle extends Entity {
     this.delay = delay;
     this.life = life;
     this.t = 0;
+    this.rot0 = rot0;
+    this.rot1 = rot1;
     this.style = style;
     this.lineWidth = lineWidth;
   }
   draw(ctx) {
     let r = lerp(this.r0, this.r1, this.t, this.life);
+    let rot = lerp(this.rot0, this.rot1, this.t, this.life);
     let c = Rgba.lerp(this.c0, this.c1, this.t, this.life);
 
     if (this.style === "fill") ctx.fillStyle = c;
@@ -61,9 +66,13 @@ export class Particle extends Entity {
       ctx.strokeStyle = c;
       ctx.lineWidth = this.lineWidth;
     }
-    ctx.beginPath();
-    ctx.ellipse(this.p.x, this.p.y, r, r, 0, 0, PI2);
-    this.style === "fill" ? ctx.fill() : ctx.stroke();
+    ctx.save();
+    ctx.translate(this.p.x, this.p.y);
+    ctx.rotate(rot * DEG2RAD);
+    this.style === "fill"
+      ? ctx.fillRect(-r, -r, r * 2, r * 2)
+      : ctx.strokeRect(-r, -r, r * 2, r * 2);
+    ctx.restore();
   }
   update(dt) {
     this.delay -= dt;
@@ -105,6 +114,8 @@ export function particle(
     ca1 = ca0,
     r0 = 0,
     r1 = r0,
+    rot0 = 0,
+    rot1 = rot0,
     delay = 0,
     life = 0,
     style = "fill",
@@ -132,6 +143,8 @@ export function particle(
       val(ca1),
       val(r0),
       val(r1),
+      val(rot0),
+      val(rot1),
       val(delay),
       val(life),
       style,

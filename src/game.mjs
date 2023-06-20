@@ -1,4 +1,13 @@
-import { Vec2, rnd, clampMin, clampMax, PI2, keypressed } from "./utils.mjs";
+import {
+  Vec2,
+  rnd,
+  clampMin,
+  clampMax,
+  PI2,
+  keypressed,
+  ImageAsset,
+  clamp,
+} from "./utils.mjs";
 import { Particle } from "./particles.mjs";
 import { Star, initStars } from "./stars.mjs";
 import { EntityList } from "./entities.mjs";
@@ -21,6 +30,7 @@ import {
 } from "./gui.mjs";
 
 let screens = { play, menu, pause, gameOver, upgrade };
+let menu_cursor;
 
 export function initGame(w, h, ctx, assets) {
   let gameState = {
@@ -52,6 +62,7 @@ export function initGame(w, h, ctx, assets) {
     points: 0,
     last_points_payed: 0,
   };
+  menu_cursor = new ImageAsset("ui", 366, 293, 20, 26);
   initMenu(gameState);
   initStars(gameState);
   initLaser(gameState);
@@ -59,6 +70,7 @@ export function initGame(w, h, ctx, assets) {
 }
 
 export function refresh(gameState) {
+  menu_cursor = new ImageAsset("ui", 366, 293, 20, 26);
   gameState.player = new Player().copyFrom(gameState.player);
   gameState.projectiles = EntityList.copyFrom(
     gameState.projectiles,
@@ -95,6 +107,20 @@ export function gameLoop(dt, gameState) {
   gameState.stars.drawAll(ctx, gameState);
 
   screen(dt, gameState);
+
+  if (gameState.screen !== "play" && gameState.has_mouse_lock) {
+    gameState.mx = clamp(
+      gameState.mx + gameState.input.MouseX,
+      0,
+      gameState.win.w
+    );
+    gameState.my = clamp(
+      gameState.my + gameState.input.MouseY,
+      0,
+      gameState.win.h
+    );
+    menu_cursor.draw(gameState, gameState.mx, gameState.my, 20, 27);
+  }
 
   if (gameState.debug) {
     ctx.fillStyle = "white";
@@ -254,19 +280,17 @@ function menu(dt, gameState) {
   };
 
   if (actions.Up) {
-    if (gameState.mouse_active && gameState.menu_mouse_active >= 0)
+    if (gameState.has_mouse_lock && gameState.menu_mouse_active >= 0)
       gameState.menu_keyboard_active = gameState.menu_mouse_active;
 
-    gameState.mouse_active = false;
     gameState.menu_keyboard_active = clampMin(
       gameState.menu_keyboard_active - 1,
       0
     );
   } else if (actions.Down) {
-    if (gameState.mouse_active && gameState.menu_mouse_active >= 0)
+    if (gameState.has_mouse_lock && gameState.menu_mouse_active >= 0)
       gameState.menu_keyboard_active = gameState.menu_mouse_active;
 
-    gameState.mouse_active = false;
     gameState.menu_keyboard_active = clampMax(
       gameState.menu_keyboard_active + 1,
       gameState.menu_items.length - 1
@@ -292,24 +316,24 @@ function menu(dt, gameState) {
   }
 
   drawOverlay(gameState);
-  drawBg(
-    gameState,
-    gameState.win.w / 4,
-    gameState.win.h / 3,
-    (gameState.win.w / 4) * 3,
-    (gameState.win.h / 4) * 3
-  );
-  drawLines(
-    gameState,
-    [
-      ["Asteroids", "xl"],
-      ["By Andreas McDermott", "m"],
-    ],
-    gameState.win.w / 2,
-    gameState.win.h / 3
-  );
 
   if (gameState.menu_screen === "help") {
+    drawBg(
+      gameState,
+      gameState.win.w / 4,
+      gameState.win.h / 3,
+      (gameState.win.w / 4) * 3,
+      (gameState.win.h / 4) * 3
+    );
+    drawLines(
+      gameState,
+      [
+        ["Asteroids", "xl"],
+        ["By Andreas McDermott", "m"],
+      ],
+      gameState.win.w / 2,
+      gameState.win.h / 3
+    );
     drawLines(
       gameState,
       [
@@ -326,7 +350,7 @@ function menu(dt, gameState) {
     );
     drawText(
       gameState,
-      "Press any key to go back ",
+      gameState.has_mouse_lock ? "Click to go back" : "Press Enter to go back",
       win.w / 2,
       (win.h / 4) * 3 - 20,
       "l",
@@ -334,13 +358,28 @@ function menu(dt, gameState) {
       "bottom"
     );
   } else {
-    gameState.menu_mouse_active = -1;
     let item_height = 46;
     let item_height_with_space = 56;
+    drawBg(
+      gameState,
+      gameState.win.w / 4,
+      gameState.win.h / 3,
+      (gameState.win.w / 4) * 3,
+      (gameState.win.h / 4) * 3
+    );
+    drawLines(
+      gameState,
+      [
+        ["Asteroids", "xl"],
+        ["By Andreas McDermott", "m"],
+      ],
+      gameState.win.w / 2,
+      gameState.win.h / 3
+    );
+
+    gameState.menu_mouse_active = -1;
     let start =
-      (win.h / 4) * 3 -
-      (gameState.menu_items.length - 1) * item_height_with_space -
-      item_height;
+      (win.h / 4) * 3 - gameState.menu_items.length * item_height_with_space;
     for (let i = 0; i < gameState.menu_items.length; ++i) {
       let tw = measureText(gameState, gameState.menu_items[i]);
       let left = win.w / 2 - tw / 2 - padding;
@@ -350,8 +389,8 @@ function menu(dt, gameState) {
       let right = left + width;
       let bottom = top + height;
 
-      if (gameState.mouse_active) {
-        let { MouseX, MouseY } = gameState.input;
+      if (gameState.has_mouse_lock) {
+        let { mx: MouseX, my: MouseY } = gameState;
         if (
           MouseX >= left &&
           MouseX <= right &&
@@ -363,7 +402,7 @@ function menu(dt, gameState) {
       }
 
       if (
-        gameState.mouse_active
+        gameState.has_mouse_lock
           ? gameState.menu_mouse_active === i
           : gameState.menu_keyboard_active === i
       ) {
@@ -390,7 +429,9 @@ function upgrade(dt, gameState) {
     win.w / 6,
     win.h / 3 - padding,
     (win.w / 6) * 5,
-    win.h / 2 + win.w / 6 + padding
+    gameState.screen_transition <= 0
+      ? win.h / 2 + win.w / 6 + padding
+      : win.h / 3 + 36 + padding
   );
   drawText(
     gameState,
@@ -433,18 +474,16 @@ function upgrade(dt, gameState) {
   };
 
   if (actions.Prev) {
-    if (gameState.mouse_active && gameState.upgrade_mouse_active >= 0)
+    if (gameState.has_mouse_lock && gameState.upgrade_mouse_active >= 0)
       gameState.upgrade_keyboard_active = gameState.upgrade_mouse_active;
 
-    gameState.mouse_active = false;
     gameState.upgrade_keyboard_active = clampMin(
       gameState.upgrade_keyboard_active - 1
     );
   } else if (actions.Next) {
-    if (gameState.mouse_active && gameState.upgrade_mouse_active >= 0)
+    if (gameState.has_mouse_lock && gameState.upgrade_mouse_active >= 0)
       gameState.upgrade_keyboard_active = gameState.upgrade_mouse_active;
 
-    gameState.mouse_active = false;
     gameState.upgrade_keyboard_active = clampMax(
       gameState.upgrade_keyboard_active + 1,
       available_upgrades.length - 1
@@ -470,7 +509,7 @@ function upgrade(dt, gameState) {
     gameState,
     "Pick Your Upgrade:",
     win.w / 2,
-    win.h / 3 + 60,
+    win.h / 2 - padding * 2,
     "m",
     "center",
     "middle"
@@ -484,8 +523,8 @@ function upgrade(dt, gameState) {
     let upgrade = available_upgrades[i];
     let boxLeft = win.w / 2 - (win.w / 6 + 15) * 1.5 + (win.w / 6 + 20) * i;
 
-    if (gameState.mouse_active) {
-      let { MouseX, MouseY } = gameState.input;
+    if (gameState.has_mouse_lock) {
+      let { mx: MouseX, my: MouseY } = gameState;
       if (
         MouseX >= boxLeft &&
         MouseX <= boxLeft + boxSize &&
@@ -496,7 +535,7 @@ function upgrade(dt, gameState) {
       }
     }
 
-    let isActive = gameState.mouse_active
+    let isActive = gameState.has_mouse_lock
       ? gameState.upgrade_mouse_active === i
       : gameState.upgrade_keyboard_active === i;
     let currUpgradeValue = gameState.upgrades[upgrade.type];

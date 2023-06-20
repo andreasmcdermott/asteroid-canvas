@@ -120,6 +120,8 @@ export class Player extends Entity {
       ca1: 0,
       r0: [6, 10],
       r1: 0,
+      rot0: [-180, 180],
+      rot1: [-180, 180],
       delay: [0, 50],
       life: [500, 1500],
     });
@@ -134,6 +136,8 @@ export class Player extends Entity {
       ca1: 0,
       r0: 0,
       r1: this.h * 3,
+      rot0: [-45, 45],
+      rot1: [-45, 45],
       style: "stroke",
       lineWidth: 4,
       delay: [0, 50],
