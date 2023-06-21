@@ -28,6 +28,7 @@ let player_invincibilty_max = 1500;
 let restart_cooldown = 500;
 
 export class Player extends Entity {
+  static cursor = new ImageAsset("ui", 333, 469, 30, 30);
   static ship = new SpriteSheetImage(305, 384, 94, 96, 90);
   static thrust = new SpriteSheetImage(610, 0, 62, 126, 90);
   static bg = new GuiBackgroundImage(100, 200, 99, 100, 20, 20);
@@ -193,6 +194,17 @@ export class Player extends Entity {
     let tw = measureText(gameState, text, "m");
     Player.bg.draw(gameState, gameState.win.w - tw - 60, -20, tw + 90, 64);
     drawText(gameState, text, gameState.win.w - 20, 16, "m", "right");
+
+    // Cursor
+    if (gameState.has_mouse_lock && gameState.screen === "play") {
+      Player.cursor.draw(
+        gameState,
+        gameState.mx - 16,
+        gameState.my - 16,
+        32,
+        32
+      );
+    }
   }
 
   draw(ctx, gameState) {
@@ -226,9 +238,6 @@ export class Player extends Entity {
       if (this.shield) {
         drawShield(gameState, this.p.x, this.p.y, this.angle, this.r);
       }
-    }
-
-    if (gameState.screen === "play") {
     }
     this.drawGui(ctx, gameState);
   }
@@ -264,18 +273,16 @@ export class Player extends Entity {
     if (gameState.screen === "play") {
       if (actions.RotLeft) {
         this.rot = -1;
-        gameState.mouse_active = false;
       }
       if (actions.RotRight) {
         this.rot = 1;
-        gameState.mouse_active = false;
       }
       if (actions.RotLeft === actions.RotRight) this.rot = 0;
 
-      if (gameState.mouse_active && gameState.screen !== "pause") {
+      if (gameState.has_mouse_lock && gameState.screen === "play") {
         let dir = new Vec2(
-          gameState.input.MouseX - this.p.x,
-          gameState.input.MouseY - this.p.y
+          gameState.mx - this.p.x,
+          gameState.my - this.p.y
         ).normalize();
         this.angle = Math.atan2(dir.y, dir.x) * RAD2DEG;
       } else
@@ -374,14 +381,14 @@ export class Player extends Entity {
               y: collp.y,
               v0x: [dir.x - 2, dir.x + 2],
               v0y: [dir.y - 2, dir.y + 2],
-              v0v: [0.5, 0.75],
+              v0v: [0.45, 0.65],
               v1v: 0,
-              cr0: 100,
-              cg0: 255,
-              cb0: 100,
+              cr0: 88,
+              cg0: 222,
+              cb0: 191,
               ca0: 1,
               ca1: 0,
-              r0: [1, 2],
+              r0: [2, 4],
               life: [50, 200],
               delay: [0, 10],
             });

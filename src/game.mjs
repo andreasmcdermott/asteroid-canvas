@@ -108,7 +108,7 @@ export function gameLoop(dt, gameState) {
 
   screen(dt, gameState);
 
-  if (gameState.screen !== "play" && gameState.has_mouse_lock) {
+  if (gameState.has_mouse_lock) {
     gameState.mx = clamp(
       gameState.mx + gameState.input.MouseX,
       0,
@@ -119,7 +119,9 @@ export function gameLoop(dt, gameState) {
       0,
       gameState.win.h
     );
-    menu_cursor.draw(gameState, gameState.mx, gameState.my, 20, 27);
+    if (gameState.screen !== "play") {
+      menu_cursor.draw(gameState, gameState.mx, gameState.my, 20, 27);
+    }
   }
 
   if (gameState.debug) {
@@ -365,7 +367,7 @@ function menu(dt, gameState) {
       gameState.win.w / 4,
       gameState.win.h / 3,
       (gameState.win.w / 4) * 3,
-      (gameState.win.h / 4) * 3
+      gameState.win.h / 2 + gameState.menu_items.length * item_height_with_space
     );
     drawLines(
       gameState,
@@ -378,8 +380,7 @@ function menu(dt, gameState) {
     );
 
     gameState.menu_mouse_active = -1;
-    let start =
-      (win.h / 4) * 3 - gameState.menu_items.length * item_height_with_space;
+    let start = win.h / 2;
     for (let i = 0; i < gameState.menu_items.length; ++i) {
       let tw = measureText(gameState, gameState.menu_items[i]);
       let left = win.w / 2 - tw / 2 - padding;
