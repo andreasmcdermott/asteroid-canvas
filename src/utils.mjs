@@ -3,6 +3,8 @@ export const PI2 = Math.PI * 2;
 export const DEG2RAD = PI / 180;
 export const RAD2DEG = 180 / PI;
 
+const MIN_GAMEPAD_ANALOG = 0.2;
+
 export function rnd(first, second) {
   if (arguments.length === 1) return Math.random() * first;
   return Math.random() * (second - first) + first;
@@ -10,6 +12,36 @@ export function rnd(first, second) {
 
 export function keypressed(gameState, key) {
   return !gameState.input[key] && !!gameState.lastInput[key];
+}
+
+export function gamepadButtonPressed(gameState, button) {
+  return (
+    !!gameState.gamepad &&
+    !gameState.input[`gamepad${button}`] &&
+    !!gameState.lastInput[`gamepad${button}`]
+  );
+}
+
+export function gamepadButtonDown(gameState, button) {
+  return !!gameState.gamepad && !!gameState.input[`gamepad${button}`];
+}
+
+export function gamepadAnalogButtonDown(gameState, button, val) {
+  return !!gameState.gamepad && gameState.input[`gamepad${button}`] >= val;
+}
+
+export function gamepadStickIsActive(gameState, stick) {
+  return (
+    !!gameState.gamepad &&
+    (Math.abs(gameState.input[`gamepad${stick}`].x) >= MIN_GAMEPAD_ANALOG ||
+      Math.abs(gameState.input[`gamepad${stick}`].y) >= MIN_GAMEPAD_ANALOG)
+  );
+}
+
+export function gamepadAnalogStick(gameState, stick) {
+  if (!gameState.gamepad) return null;
+  let { x, y } = gameState.input[`gamepad${stick}`];
+  return new Vec2(x, y);
 }
 
 export function keydown(gameState, key) {

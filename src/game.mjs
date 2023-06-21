@@ -7,6 +7,7 @@ import {
   keypressed,
   ImageAsset,
   clamp,
+  gamepadButtonPressed,
 } from "./utils.mjs";
 import { Particle } from "./particles.mjs";
 import { Star, initStars } from "./stars.mjs";
@@ -32,10 +33,31 @@ import {
 let screens = { play, menu, pause, gameOver, upgrade };
 let menu_cursor;
 
+let KeyboardHelp = [
+  ["Shoot: Space / Period", "m"],
+  ["Shield: Shift / Comma", "m"],
+  ["Thruster: Up / W", "m"],
+  ["Turn: Left|Right / A|D", "m"],
+];
+let MouseHelp = [
+  ["Shoot: Left Mouse Button", "m"],
+  ["Shield: Right Mouse Button", "m"],
+  ["Thruster: Up / W", "m"],
+  ["Turn: Left|Right / A|D", "m"],
+];
+let GamepadHelp = [
+  ["Shoot: Right Trigger", "m"],
+  ["Shield: Left Trigger", "m"],
+  ["Thruster: A / Left Analog Stick", "m"],
+  ["Turn: Left Analog Stick / Right Analog Stick", "m"],
+];
+
 export function initGame(w, h, ctx, assets) {
   let gameState = {
     ctx,
     assets,
+    active_input: "keyboard",
+    gamepad: null,
     debug: false,
     has_mouse_lock: false,
     mx: w / 2,
@@ -108,7 +130,7 @@ export function gameLoop(dt, gameState) {
 
   screen(dt, gameState);
 
-  if (gameState.has_mouse_lock) {
+  if (gameState.active_input === "mouse") {
     gameState.mx = clamp(
       gameState.mx + gameState.input.MouseX,
       0,
@@ -151,7 +173,8 @@ function play(dt, gameState) {
   let { ctx } = gameState;
 
   if (
-    keypressed(gameState, "Escape") &&
+    (keypressed(gameState, "Escape") ||
+      gamepadButtonPressed(gameState, "Start")) &&
     !gameState.player.destroyed &&
     gameState.asteroids.activeCount > 0
   ) {
@@ -165,27 +188,29 @@ function play(dt, gameState) {
 
   // Dev code for adding more astroid
 
-  if (keypressed(gameState, "1"))
-    gameState.asteroids.push(
-      gameState,
-      rnd(gameState.win.w),
-      rnd(gameState.win.h),
-      0
-    );
-  else if (keypressed(gameState, "2"))
-    gameState.asteroids.push(
-      gameState,
-      rnd(gameState.win.w),
-      rnd(gameState.win.h),
-      1
-    );
-  else if (keypressed(gameState, "3"))
-    gameState.asteroids.push(
-      gameState,
-      rnd(gameState.win.w),
-      rnd(gameState.win.h),
-      2
-    );
+  if (IS_DEV) {
+    if (keypressed(gameState, "1"))
+      gameState.asteroids.push(
+        gameState,
+        rnd(gameState.win.w),
+        rnd(gameState.win.h),
+        0
+      );
+    else if (keypressed(gameState, "2"))
+      gameState.asteroids.push(
+        gameState,
+        rnd(gameState.win.w),
+        rnd(gameState.win.h),
+        1
+      );
+    else if (keypressed(gameState, "3"))
+      gameState.asteroids.push(
+        gameState,
+        rnd(gameState.win.w),
+        rnd(gameState.win.h),
+        2
+      );
+  }
 
   gameState.projectiles.updateAll(dt, gameState);
   gameState.asteroids.updateAll(dt, gameState);
@@ -277,20 +302,23 @@ function menu(dt, gameState) {
     SelectKeyboard:
       keypressed(gameState, "Enter") || keypressed(gameState, " "),
     SelectMouse: keypressed(gameState, "Mouse0"),
+    SelectGamepad: gamepadButtonPressed(gameState, "A"),
     Up: keypressed(gameState, "ArrowUp") || keypressed(gameState, "w"),
     Down: keypressed(gameState, "ArrowDown") || keypressed(gameState, "s"),
+    GamepadUp: gamepadButtonPressed(gameState, "DpadUp"),
+    GamepadDown: gamepadButtonPressed(gameState, "DpadDown"),
   };
 
-  if (actions.Up) {
-    if (gameState.has_mouse_lock && gameState.menu_mouse_active >= 0)
+  if (actions.Up || actions.GamepadUp) {
+    if (gameState.active_input === "mouse" && gameState.menu_mouse_active >= 0)
       gameState.menu_keyboard_active = gameState.menu_mouse_active;
 
     gameState.menu_keyboard_active = clampMin(
       gameState.menu_keyboard_active - 1,
       0
     );
-  } else if (actions.Down) {
-    if (gameState.has_mouse_lock && gameState.menu_mouse_active >= 0)
+  } else if (actions.Down || actions.GamepadDown) {
+    if (gameState.active_input === "mouse" && gameState.menu_mouse_active >= 0)
       gameState.menu_keyboard_active = gameState.menu_mouse_active;
 
     gameState.menu_keyboard_active = clampMax(
@@ -298,15 +326,17 @@ function menu(dt, gameState) {
       gameState.menu_items.length - 1
     );
   } else if (
+    actions.SelectGamepad ||
     actions.SelectKeyboard ||
-    (actions.SelectMouse && gameState.menu_mouse_active >= 0)
+    (actions.SelectMouse && gameState.active_input === "mouse")
   ) {
     if (gameState.menu_screen === "help") {
       gameState.menu_screen = "";
     } else {
-      let active = actions.SelectKeyboard
-        ? gameState.menu_keyboard_active
-        : gameState.menu_mouse_active;
+      let active =
+        actions.SelectKeyboard || actions.SelectGamepad
+          ? gameState.menu_keyboard_active
+          : gameState.menu_mouse_active;
       if (gameState.menu_items[active] === "Help") {
         gameState.menu_screen = "help";
       } else {
@@ -338,12 +368,11 @@ function menu(dt, gameState) {
     );
     drawLines(
       gameState,
-      [
-        ["Shoot: Left Mouse Button / Space / Period", "m"],
-        ["Shield: Right Mouse Button / Shift / Comma", "m"],
-        ["Thruster: Up / W", "m"],
-        ["Turn: Left|Right / A|D", "m"],
-      ],
+      gameState.active_input === "gamepad"
+        ? GamepadHelp
+        : gameState.active_input === "mouse"
+        ? MouseHelp
+        : KeyboardHelp,
       gameState.win.w / 2,
       (gameState.win.h / 4) * 2.4,
       "center",
@@ -352,7 +381,11 @@ function menu(dt, gameState) {
     );
     drawText(
       gameState,
-      gameState.has_mouse_lock ? "Click to go back" : "Press Enter to go back",
+      gameState.active_input === "gamepad"
+        ? "Press A to go back"
+        : gameState.active_input === "mouse"
+        ? "Click to go back"
+        : "Press Enter to go back",
       win.w / 2,
       (win.h / 4) * 3 - 20,
       "l",
@@ -390,7 +423,7 @@ function menu(dt, gameState) {
       let right = left + width;
       let bottom = top + height;
 
-      if (gameState.has_mouse_lock) {
+      if (gameState.active_input === "mouse") {
         let { mx: MouseX, my: MouseY } = gameState;
         if (
           MouseX >= left &&
@@ -403,7 +436,7 @@ function menu(dt, gameState) {
       }
 
       if (
-        gameState.has_mouse_lock
+        gameState.active_input === "mouse"
           ? gameState.menu_mouse_active === i
           : gameState.menu_keyboard_active === i
       ) {
@@ -467,22 +500,35 @@ function upgrade(dt, gameState) {
   }
 
   let actions = {
-    Prev: keypressed(gameState, "ArrowLeft") || keypressed(gameState, "a"),
-    Next: keypressed(gameState, "ArrowRight") || keypressed(gameState, "d"),
+    Prev:
+      keypressed(gameState, "ArrowLeft") ||
+      keypressed(gameState, "a") ||
+      gamepadButtonPressed(gameState, "DpadLeft"),
+    Next:
+      keypressed(gameState, "ArrowRight") ||
+      keypressed(gameState, "d") ||
+      gamepadButtonPressed(gameState, "DpadRight"),
     SelectKeyboard:
       keypressed(gameState, "Enter") || keypressed(gameState, " "),
     SelectMouse: keypressed(gameState, "Mouse0"),
+    SelectGamepad: gamepadButtonPressed(gameState, "A"),
   };
 
   if (actions.Prev) {
-    if (gameState.has_mouse_lock && gameState.upgrade_mouse_active >= 0)
+    if (
+      gameState.active_input === "mouse" &&
+      gameState.upgrade_mouse_active >= 0
+    )
       gameState.upgrade_keyboard_active = gameState.upgrade_mouse_active;
 
     gameState.upgrade_keyboard_active = clampMin(
       gameState.upgrade_keyboard_active - 1
     );
   } else if (actions.Next) {
-    if (gameState.has_mouse_lock && gameState.upgrade_mouse_active >= 0)
+    if (
+      gameState.active_input === "mouse" &&
+      gameState.upgrade_mouse_active >= 0
+    )
       gameState.upgrade_keyboard_active = gameState.upgrade_mouse_active;
 
     gameState.upgrade_keyboard_active = clampMax(
@@ -491,11 +537,12 @@ function upgrade(dt, gameState) {
     );
   } else if (
     actions.SelectKeyboard ||
+    actions.SelectGamepad ||
     (actions.SelectMouse && gameState.upgrade_mouse_active >= 0)
   ) {
     let selected =
       available_upgrades[
-        actions.SelectKeyboard
+        actions.SelectKeyboard || actions.SelectGamepad
           ? gameState.upgrade_keyboard_active
           : gameState.upgrade_mouse_active
       ];
@@ -524,7 +571,7 @@ function upgrade(dt, gameState) {
     let upgrade = available_upgrades[i];
     let boxLeft = win.w / 2 - (win.w / 6 + 15) * 1.5 + (win.w / 6 + 20) * i;
 
-    if (gameState.has_mouse_lock) {
+    if (gameState.active_input === "mouse") {
       let { mx: MouseX, my: MouseY } = gameState;
       if (
         MouseX >= boxLeft &&
@@ -536,9 +583,10 @@ function upgrade(dt, gameState) {
       }
     }
 
-    let isActive = gameState.has_mouse_lock
-      ? gameState.upgrade_mouse_active === i
-      : gameState.upgrade_keyboard_active === i;
+    let isActive =
+      gameState.active_input === "mouse"
+        ? gameState.upgrade_mouse_active === i
+        : gameState.upgrade_keyboard_active === i;
     let currUpgradeValue = gameState.upgrades[upgrade.type];
     drawBg(
       gameState,
@@ -650,7 +698,9 @@ function gameOver(dt, gameState) {
   );
   drawText(
     gameState,
-    "Press Enter to Restart",
+    gameState.active_input === "gamepad"
+      ? "Press Start to Play Again"
+      : "Press Enter to Play Again",
     win.w / 2,
     win.h / 2,
     "l",
@@ -658,7 +708,10 @@ function gameOver(dt, gameState) {
     "bottom"
   );
 
-  if (keypressed(gameState, "Enter")) {
+  if (
+    keypressed(gameState, "Enter") ||
+    gamepadButtonPressed(gameState, "Start")
+  ) {
     gameState.level = -1;
     gameState.screen = "play";
   }
@@ -667,7 +720,10 @@ function gameOver(dt, gameState) {
 function pause(dt, gameState) {
   let { ctx, win } = gameState;
 
-  if (keypressed(gameState, "Escape")) {
+  if (
+    keypressed(gameState, "Escape") ||
+    gamepadButtonPressed(gameState, "Start")
+  ) {
     gameState.screen = "play";
     return;
   }
@@ -690,7 +746,9 @@ function pause(dt, gameState) {
   );
   drawText(
     gameState,
-    "Press Escape to Continue",
+    gameState.active_input === "gamepad"
+      ? "Press Start to Continue"
+      : "Press Escape to Continue",
     win.w / 2,
     win.h / 2,
     "l",

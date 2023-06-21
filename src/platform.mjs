@@ -4,6 +4,7 @@ let w, h;
 let gameState;
 let canvas;
 let _Game;
+let gamepad = -1;
 
 function gameLoop(dt) {
   try {
@@ -82,6 +83,23 @@ export function init(_canvas) {
 function nextFrame(t) {
   let dt = t - lt; // dt is ~16ms
   lt = t;
+  if (gamepad >= 0) {
+    let { axes, buttons } = navigator.getGamepads()[gamepad];
+    gameState.input.gamepadLeftStick = { x: axes[0], y: axes[1] };
+    gameState.input.gamepadRightStick = { x: axes[2], y: axes[3] };
+    gameState.input.gamepadLeftTrigger = buttons[6]?.value ?? 0;
+    gameState.input.gamepadRightTrigger = buttons[7]?.value ?? 0;
+    gameState.input.gamepadA = buttons[0]?.pressed ?? false;
+    gameState.input.gamepadB = buttons[1]?.pressed ?? false;
+    gameState.input.gamepadStart = buttons[9]?.pressed ?? false;
+    gameState.input.gamepadDpadLeft = buttons[14]?.pressed ?? false;
+    gameState.input.gamepadDpadRight = buttons[15]?.pressed ?? false;
+    gameState.input.gamepadDpadUp = buttons[12]?.pressed ?? false;
+    gameState.input.gamepadDpadDown = buttons[13]?.pressed ?? false;
+    if (buttons.some((b) => b.pressed) || axes.some((v) => Math.abs(v) > 0.5)) {
+      gameState.active_input = "gamepad";
+    }
+  }
   gameLoop(dt);
   gameState.lastInput = { ...gameState.input };
   gameState.input.MouseX = 0;
@@ -116,6 +134,7 @@ function initEventListeners() {
   window.addEventListener(
     "keydown",
     (e) => {
+      gameState.active_input = "keyboard";
       gameState.input[e.key] = true;
     },
     { passive: true }
@@ -136,6 +155,7 @@ function initEventListeners() {
       if (gameState.has_mouse_lock) {
         gameState.input["MouseX"] = movementX;
         gameState.input["MouseY"] = movementY;
+        gameState.active_input = "mouse";
       }
     },
     { passive: true }
@@ -145,6 +165,7 @@ function initEventListeners() {
     "mousedown",
     (e) => {
       if (gameState.has_mouse_lock) {
+        gameState.active_input = "mouse";
         gameState.input[`Mouse${e.button}`] = true;
       }
     },
@@ -161,6 +182,22 @@ function initEventListeners() {
 
   window.addEventListener("blur", (e) => {
     if (gameState.screen === "play" && !IS_DEV) gameState.screen = "pause";
+  });
+
+  window.addEventListener("gamepadconnected", (e) => {
+    let gp = navigator.getGamepads()[e.gamepad.index];
+    if (gp.mapping === "standard") {
+      gamepad = e.gamepad.index;
+      gameState.gamepad = gp;
+    } else {
+      gamepad = -1;
+      console.log("Unsupported gamepad", gp);
+    }
+  });
+
+  window.addEventListener("gamepaddisconnected", (e) => {
+    gameState.gamepad = null;
+    gamepad = -1;
   });
 
   document.addEventListener(

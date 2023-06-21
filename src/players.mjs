@@ -15,6 +15,11 @@ import {
   SpriteSheetImage,
   GuiBackgroundImage,
   GuiBarImage,
+  gamepadButtonPressed,
+  gamepadAnalogButtonDown,
+  gamepadButtonDown,
+  gamepadAnalogStick,
+  gamepadStickIsActive,
 } from "./utils.mjs";
 import { particle } from "./particles.mjs";
 import { max_lives } from "./constants.mjs";
@@ -196,7 +201,7 @@ export class Player extends Entity {
     drawText(gameState, text, gameState.win.w - 20, 16, "m", "right");
 
     // Cursor
-    if (gameState.has_mouse_lock && gameState.screen === "play") {
+    if (gameState.active_input === "mouse" && gameState.screen === "play") {
       Player.cursor.draw(
         gameState,
         gameState.mx - 16,
@@ -259,35 +264,23 @@ export class Player extends Entity {
     let actions = {
       RotLeft: keydown(gameState, "ArrowLeft") || keydown(gameState, "a"),
       RotRight: keydown(gameState, "ArrowRight") || keydown(gameState, "d"),
-      Accelerate: keydown(gameState, "ArrowUp") || keydown(gameState, "w"),
+      Accelerate:
+        keydown(gameState, "ArrowUp") ||
+        keydown(gameState, "w") ||
+        gamepadButtonDown(gameState, "A"),
       Fire:
         keydown(gameState, " ") ||
         keydown(gameState, ".") ||
-        keydown(gameState, "Mouse0"),
+        keydown(gameState, "Mouse0") ||
+        gamepadAnalogButtonDown(gameState, "RightTrigger", 0.5),
       Shield:
         keydown(gameState, "Shift") ||
         keydown(gameState, ",") ||
-        keydown(gameState, "Mouse2"),
+        keydown(gameState, "Mouse2") ||
+        gamepadAnalogButtonDown(gameState, "LeftTrigger", 0.5),
     };
 
     if (gameState.screen === "play") {
-      if (actions.RotLeft) {
-        this.rot = -1;
-      }
-      if (actions.RotRight) {
-        this.rot = 1;
-      }
-      if (actions.RotLeft === actions.RotRight) this.rot = 0;
-
-      if (gameState.has_mouse_lock && gameState.screen === "play") {
-        let dir = new Vec2(
-          gameState.mx - this.p.x,
-          gameState.my - this.p.y
-        ).normalize();
-        this.angle = Math.atan2(dir.y, dir.x) * RAD2DEG;
-      } else
-        this.angle = wrapDeg(this.angle + this.rot * player_rot_speed * dt);
-
       if (actions.Shield && this.shield_charge > 0) {
         this.shield_recharging = false;
         this.shield = true;
@@ -311,7 +304,39 @@ export class Player extends Entity {
         }
       }
 
-      if (!this.shield && actions.Accelerate) {
+      if (gamepadStickIsActive(gameState, "LeftStick")) {
+        let acc = gamepadAnalogStick(gameState, "LeftStick");
+        acc.normalize();
+        this.angle =
+          RAD2DEG * Math.acos(acc.x * 1 + acc.y * 0) * (acc.y < 0 ? -1 : 1);
+      } else if (gamepadStickIsActive(gameState, "RightStick")) {
+        let acc = gamepadAnalogStick(gameState, "RightStick");
+        acc.normalize();
+        this.angle =
+          RAD2DEG * Math.acos(acc.x * 1 + acc.y * 0) * (acc.y < 0 ? -1 : 1);
+      } else {
+        if (actions.RotLeft) {
+          this.rot = -1;
+        }
+        if (actions.RotRight) {
+          this.rot = 1;
+        }
+        if (actions.RotLeft === actions.RotRight) this.rot = 0;
+
+        if (gameState.has_mouse_lock) {
+          let dir = new Vec2(
+            gameState.mx - this.p.x,
+            gameState.my - this.p.y
+          ).normalize();
+          this.angle = Math.atan2(dir.y, dir.x) * RAD2DEG;
+        } else
+          this.angle = wrapDeg(this.angle + this.rot * player_rot_speed * dt);
+      }
+
+      if (
+        !this.shield &&
+        (actions.Accelerate || gamepadStickIsActive(gameState, "LeftStick"))
+      ) {
         this.acc = true;
         let acc = Vec2.fromAngle(this.angle);
         this.v.add(acc.scale(dt * player_acc));
